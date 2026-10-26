@@ -40,6 +40,8 @@
 #include <QToolButton>
 
 #include <algorithm>
+#include <array>
+#include <string>
 
 #define SWITCHER_THEME_ID "com.obsproject.Yami.Megalume"
 
