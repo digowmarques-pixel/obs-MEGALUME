@@ -2206,6 +2206,68 @@ OBSBasicFilters #widget_2 QPushButton {
     color: var(--text_disabled);
 }
 
+#switcherInputTabs {
+    background: var(--bg_base);
+}
+
+#switcherInputTabs .switcher-tab {
+    font-size: var(--font_small);
+    font-weight: bold;
+    padding: 0px 8px;
+    height: 20px;
+    max-height: 20px;
+    border-radius: 0px;
+}
+
+#switcherInputTabs .switcher-tab:checked {
+    background: var(--primary);
+    border-color: var(--primary_light);
+}
+
+/* Switcher audio buses */
+
+.btn-bus {
+    font-size: var(--font_xsmall);
+    font-weight: bold;
+    padding: 0px;
+    min-width: 18px;
+    max-width: 24px;
+    height: 18px;
+    max-height: 18px;
+    border-radius: 0px;
+}
+
+.btn-bus:checked {
+    background: var(--switcher_program);
+    border-color: var(--switcher_program);
+    color: var(--switcher_title_text);
+}
+
+#switcherBusMeters {
+    background: var(--bg_base);
+    border-right: 1px solid var(--border_color);
+}
+
+#switcherBusMasterName,
+#switcherBusName {
+    font-weight: bold;
+    color: var(--switcher_title_text);
+    padding: 1px 4px;
+}
+
+#switcherBusMasterName {
+    background: var(--switcher_program);
+}
+
+#switcherBusName {
+    background: var(--primary);
+}
+
+#switcherBusTrack {
+    font-size: var(--font_xsmall);
+    color: var(--text_muted);
+}
+
 .icon-switcher-projector {
     qproperty-icon: url(theme:Dark/popout.svg);
 }

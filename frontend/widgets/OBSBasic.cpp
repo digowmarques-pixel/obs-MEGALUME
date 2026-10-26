@@ -2051,6 +2051,11 @@ void OBSBasic::SetDisplayAffinity(QWindow *window)
 
 void OBSBasic::OnEvent(enum obs_frontend_event event)
 {
+	/* Overlay channels are emptied along with the old scene collection */
+	if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CLEANUP) {
+		ClearSwitcherOverlays();
+	}
+
 	if (switcherInputGrid) {
 		switch (event) {
 		case OBS_FRONTEND_EVENT_SCENE_CHANGED:

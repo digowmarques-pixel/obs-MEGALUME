@@ -76,6 +76,35 @@ VolumeControl::VolumeControl(obs_source_t *source, QWidget *parent, bool vertica
 	monitorButton->setCheckable(true);
 	idian::Utils::addClass(monitorButton, "btn-monitor");
 
+	busFrame = new QFrame(this);
+	busFrame->setObjectName("volBusFrame");
+	QHBoxLayout *busLayout = new QHBoxLayout(busFrame);
+	busLayout->setContentsMargins(0, 2, 0, 0);
+	busLayout->setSpacing(1);
+
+	const char *busNames[3] = {"Switcher.Bus.Master", "Switcher.Bus.A", "Switcher.Bus.B"};
+	const char *busTips[3] = {"Switcher.Bus.MasterTT", "Switcher.Bus.ATT", "Switcher.Bus.BTT"};
+	for (int i = 0; i < 3; i++) {
+		busButtons[i] = new QPushButton(QTStr(busNames[i]), busFrame);
+		busButtons[i]->setCheckable(true);
+		busButtons[i]->setToolTip(QTStr(busTips[i]));
+		busButtons[i]->setFocusPolicy(Qt::NoFocus);
+		idian::Utils::addClass(busButtons[i], "btn-bus");
+		busLayout->addWidget(busButtons[i]);
+
+		connect(busButtons[i], &QPushButton::toggled, this, [this, i](bool checked) {
+			OBSSource source = OBSGetStrongRef(weakSource());
+			if (!source) {
+				return;
+			}
+
+			uint32_t mixers = obs_source_get_audio_mixers(source);
+			mixers = checked ? (mixers | (1 << i)) : (mixers & ~(1 << i));
+			obs_source_set_audio_mixers(source, mixers);
+		});
+	}
+	busFrame->setVisible(false);
+
 	volumeLabel = new QLabel(this);
 	volumeLabel->setIndent(0);
 	volumeLabel->setObjectName("volLabel");
@@ -306,6 +335,7 @@ void VolumeControl::setLayoutVertical(bool vertical)
 		newLayout->addItem(volLayout);
 		newLayout->addWidget(meterFrame);
 		newLayout->addItem(controlLayout);
+		newLayout->addWidget(busFrame);
 
 		newLayout->setStretch(0, 0);
 		newLayout->setStretch(1, 0);
@@ -778,6 +808,12 @@ void VolumeControl::processMixerState()
 	muteButton->setChecked(showAsMuted);
 	monitorButton->setChecked(showAsMonitored);
 
+	uint32_t mixers = obs_source_get_audio_mixers(source);
+	for (int i = 0; i < 3; i++) {
+		QSignalBlocker blockBus(busButtons[i]);
+		busButtons[i]->setChecked((mixers & (1 << i)) != 0);
+	}
+
 	QString muteTooltip = showAsMuted ? QTStr("Unmute") : QTStr("Mute");
 	muteButton->setToolTip(muteTooltip);
 
@@ -882,6 +918,7 @@ void VolumeControl::setVertical(bool vertical_)
 	vertical = vertical_;
 
 	setLayoutVertical(vertical);
+	busFrame->setVisible(showBusButtons && vertical);
 }
 
 void VolumeControl::updateTabOrder()
@@ -996,4 +1033,10 @@ void VolumeControl::setLevels(const float magnitude[MAX_AUDIO_CHANNELS], const f
 	if (volumeMeter) {
 		volumeMeter->setLevels(magnitude, peak, inputPeak);
 	}
+}
+
+void VolumeControl::setShowBusButtons(bool show)
+{
+	showBusButtons = show;
+	busFrame->setVisible(show && vertical);
 }

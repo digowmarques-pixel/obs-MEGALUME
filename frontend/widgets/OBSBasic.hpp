@@ -52,6 +52,7 @@ class OBSAbout;
 class OBSBasicAdvAudio;
 class OBSBasicControls;
 class SwitcherInputGrid;
+class SwitcherInputTabs;
 class OBSBasicFilters;
 class OBSBasicInteraction;
 class OBSBasicProperties;
@@ -1478,7 +1479,13 @@ private:
 	QPointer<QToolBar> switcherBar;
 	QPointer<OBSBasicControls> switcherControls;
 	QPointer<SwitcherInputGrid> switcherInputGrid;
+	QPointer<SwitcherInputTabs> switcherInputTabs;
 	bool switcherInputsRefreshQueued = false;
+	QPointer<QWidget> switcherMixerContainer;
+	QPointer<QWidget> switcherMixer;
+	/* One fade transition per overlay channel, and what each one shows */
+	OBSSource switcherOverlayTransitions[4];
+	OBSWeakSource switcherOverlayScenes[4];
 	QByteArray switcherPrevDockState;
 	qint64 switcherOnAirStart = 0;
 
@@ -1495,6 +1502,9 @@ private:
 	void RefreshSwitcherInputs();
 	void UpdateSwitcherInputStates();
 	void ToggleSwitcherOverlay(OBSSource source, int index);
+	void ClearSwitcherOverlays();
+	void CreateSwitcherBusMeters();
+	void DestroySwitcherBusMeters();
 
 private slots:
 	void on_actionSwitcherMode_triggered(bool checked);

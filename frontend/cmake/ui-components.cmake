@@ -81,6 +81,8 @@ target_sources(
     components/SourceTreeItem.hpp
     components/SourceTreeModel.cpp
     components/SourceTreeModel.hpp
+    components/SwitcherBusMeters.cpp
+    components/SwitcherBusMeters.hpp
     components/SwitcherInputGrid.cpp
     components/SwitcherInputGrid.hpp
     components/TextSourceToolbar.cpp

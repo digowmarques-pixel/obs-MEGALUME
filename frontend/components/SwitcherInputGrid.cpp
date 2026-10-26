@@ -7,6 +7,9 @@
 
 #include <qt-wrappers.hpp>
 
+#include <dialogs/NameDialog.hpp>
+
+#include <QButtonGroup>
 #include <QContextMenuEvent>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -28,6 +31,53 @@
 
 #define METER_FLOOR_DB -60.0f
 #define METER_DECAY_DB 1.2f
+
+/* ------------------------------------------------------------------------- */
+
+QColor SwitcherCategoryColor(int category)
+{
+	static const QColor colors[SWITCHER_CATEGORY_COUNT] = {
+		QColor(196, 36, 48),  QColor(46, 150, 62),  QColor(226, 128, 20),
+		QColor(146, 58, 176), QColor(40, 110, 206), QColor(26, 150, 150),
+	};
+
+	if (category < 1 || category > SWITCHER_CATEGORY_COUNT) {
+		return QColor();
+	}
+
+	return colors[category - 1];
+}
+
+QString SwitcherCategoryName(int category)
+{
+	std::string key = "SwitcherCategory" + std::to_string(category);
+	const char *name = config_get_string(App()->GetUserConfig(), "BasicWindow", key.c_str());
+
+	if (name && *name) {
+		return QT_UTF8(name);
+	}
+
+	std::string defaultKey = "Switcher.Category." + std::to_string(category);
+	return QTStr(defaultKey.c_str());
+}
+
+void SwitcherSetCategoryName(int category, const QString &name)
+{
+	std::string key = "SwitcherCategory" + std::to_string(category);
+	config_set_string(App()->GetUserConfig(), "BasicWindow", key.c_str(), QT_TO_UTF8(name));
+}
+
+int SwitcherGetCategory(obs_source_t *scene)
+{
+	OBSDataAutoRelease settings = obs_source_get_private_settings(scene);
+	return (int)obs_data_get_int(settings, "switcher_category");
+}
+
+void SwitcherSetCategory(obs_source_t *scene, int category)
+{
+	OBSDataAutoRelease settings = obs_source_get_private_settings(scene);
+	obs_data_set_int(settings, "switcher_category", category);
+}
 
 /* ------------------------------------------------------------------------- */
 
@@ -180,6 +230,11 @@ SwitcherInputTile::SwitcherInputTile(obs_source_t *source, QWidget *parent)
 	headerLayout->setContentsMargins(4, 2, 4, 2);
 	headerLayout->setSpacing(6);
 
+	categoryMark = new QFrame(header);
+	categoryMark->setObjectName("switcherInputCategory");
+	categoryMark->setFixedSize(8, 12);
+	categoryMark->setVisible(false);
+
 	numberLabel = new QLabel(header);
 	numberLabel->setObjectName("switcherInputNumber");
 
@@ -187,6 +242,7 @@ SwitcherInputTile::SwitcherInputTile(obs_source_t *source, QWidget *parent)
 	nameLabel->setObjectName("switcherInputName");
 	nameLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
 
+	headerLayout->addWidget(categoryMark);
 	headerLayout->addWidget(numberLabel);
 	headerLayout->addWidget(nameLabel, 1);
 
@@ -318,6 +374,7 @@ SwitcherInputTile::SwitcherInputTile(obs_source_t *source, QWidget *parent)
 	stateTimer->start(500);
 
 	UpdateName();
+	UpdateCategory();
 	RescanSources();
 	UpdateButtonStates();
 }
@@ -609,6 +666,38 @@ void SwitcherInputTile::UpdateName()
 	}
 }
 
+void SwitcherInputTile::UpdateCategory()
+{
+	OBSSource source = GetSource();
+	category = source ? SwitcherGetCategory(source) : 0;
+
+	QColor color = SwitcherCategoryColor(category);
+	categoryMark->setVisible(color.isValid());
+	if (color.isValid()) {
+		categoryMark->setStyleSheet(QString("background: %1; border: 1px solid white;").arg(color.name()));
+		categoryMark->setToolTip(SwitcherCategoryName(category));
+	}
+}
+
+void SwitcherInputTile::showEvent(QShowEvent *event)
+{
+	/* Tiles filtered out by a tab stop drawing their thumbnail */
+	if (thumbnail && thumbnail->GetDisplay()) {
+		obs_display_set_enabled(thumbnail->GetDisplay(), true);
+	}
+
+	QFrame::showEvent(event);
+}
+
+void SwitcherInputTile::hideEvent(QHideEvent *event)
+{
+	if (thumbnail && thumbnail->GetDisplay()) {
+		obs_display_set_enabled(thumbnail->GetDisplay(), false);
+	}
+
+	QFrame::hideEvent(event);
+}
+
 void SwitcherInputTile::SetLiveState(bool preview, bool program)
 {
 	/* Program wins when the same input is in both */
@@ -686,19 +775,42 @@ void SwitcherInputGrid::SetScenes(const std::vector<OBSSource> &scenes)
 		}
 	}
 
-	/* Re-add everything in scene order */
-	while (QLayoutItem *item = flowLayout->takeAt(0)) {
-		delete item;
-	}
-
 	tiles = std::move(newTiles);
 
 	int number = 1;
 	for (QPointer<SwitcherInputTile> &tile : tiles) {
 		tile->SetNumber(number++);
 		tile->UpdateName();
-		flowLayout->addWidget(tile);
-		tile->show();
+		tile->UpdateCategory();
+	}
+
+	RebuildLayout();
+}
+
+void SwitcherInputGrid::SetFilter(int category)
+{
+	if (filter == category) {
+		return;
+	}
+
+	filter = category;
+	RebuildLayout();
+}
+
+void SwitcherInputGrid::RebuildLayout()
+{
+	/* Hidden tiles would still take up spacing in the flow layout, so only
+	 * the ones in the current tab are added, in scene order */
+	while (QLayoutItem *item = flowLayout->takeAt(0)) {
+		delete item;
+	}
+
+	for (QPointer<SwitcherInputTile> &tile : tiles) {
+		bool visible = filter == 0 || tile->Category() == filter;
+		if (visible) {
+			flowLayout->addWidget(tile);
+		}
+		tile->setVisible(visible);
 	}
 
 	contents->updateGeometry();
@@ -720,4 +832,83 @@ void SwitcherInputGrid::SetOverlayStates(const std::array<OBSSource, SWITCHER_OV
 			tile->SetOverlayStates(overlays);
 		}
 	}
+}
+
+/* ------------------------------------------------------------------------- */
+
+SwitcherInputTabs::SwitcherInputTabs(QWidget *parent) : QFrame(parent)
+{
+	setObjectName("switcherInputTabs");
+
+	QHBoxLayout *layout = new QHBoxLayout(this);
+	layout->setContentsMargins(4, 2, 4, 2);
+	layout->setSpacing(2);
+
+	group = new QButtonGroup(this);
+	group->setExclusive(true);
+
+	for (int i = 0; i <= SWITCHER_CATEGORY_COUNT; i++) {
+		QPushButton *button = new QPushButton(this);
+		button->setCheckable(true);
+		button->setFocusPolicy(Qt::NoFocus);
+		button->setProperty("class", "switcher-tab");
+
+		QColor color = SwitcherCategoryColor(i);
+		if (color.isValid()) {
+			/* Category colors are data, not theme, so they are set here */
+			button->setStyleSheet(QString("QPushButton { background: %1; border-color: %1; color: white; }"
+						      "QPushButton:checked { border: 2px solid white; }")
+						      .arg(color.name()));
+			button->setContextMenuPolicy(Qt::CustomContextMenu);
+			connect(button, &QPushButton::customContextMenuRequested, this,
+				[this, i]() { RenameCategory(i); });
+			button->setToolTip(QTStr("Switcher.Category.RenameTT"));
+		}
+
+		group->addButton(button, i);
+		buttons.push_back(button);
+		layout->addWidget(button);
+	}
+
+	layout->addStretch(1);
+
+	int saved = (int)config_get_int(App()->GetUserConfig(), "BasicWindow", "SwitcherCategoryFilter");
+	if (saved < 0 || saved > SWITCHER_CATEGORY_COUNT) {
+		saved = 0;
+	}
+	buttons[saved]->setChecked(true);
+
+	connect(group, &QButtonGroup::idClicked, this, [this](int id) {
+		config_set_int(App()->GetUserConfig(), "BasicWindow", "SwitcherCategoryFilter", id);
+		emit FilterChanged(id);
+	});
+
+	UpdateNames();
+}
+
+void SwitcherInputTabs::UpdateNames()
+{
+	buttons[0]->setText(QTStr("Switcher.Category.All"));
+	for (int i = 1; i <= SWITCHER_CATEGORY_COUNT; i++) {
+		buttons[i]->setText(SwitcherCategoryName(i));
+	}
+}
+
+int SwitcherInputTabs::CurrentFilter() const
+{
+	return std::max(group->checkedId(), 0);
+}
+
+void SwitcherInputTabs::RenameCategory(int category)
+{
+	std::string name = QT_TO_UTF8(SwitcherCategoryName(category));
+	if (!NameDialog::AskForName(this, QTStr("Switcher.Category.Rename"), QTStr("Switcher.Category.RenameText"),
+				    name, QT_UTF8(name.c_str())) ||
+	    name.empty()) {
+		return;
+	}
+
+	SwitcherSetCategoryName(category, QT_UTF8(name.c_str()));
+	UpdateNames();
+	emit CategoriesRenamed();
 }

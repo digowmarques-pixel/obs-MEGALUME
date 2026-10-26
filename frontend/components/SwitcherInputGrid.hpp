@@ -17,6 +17,18 @@ class QLabel;
 class QPushButton;
 
 #define SWITCHER_OVERLAY_COUNT 4
+#define SWITCHER_CATEGORY_COUNT 6
+
+class QButtonGroup;
+
+/* Inputs can be tagged with one of a few colored categories, shown as tabs
+ * above the grid. The category lives in the scene's private settings so it
+ * is saved with the scene collection; 0 means none. */
+QColor SwitcherCategoryColor(int category);
+QString SwitcherCategoryName(int category);
+void SwitcherSetCategoryName(int category, const QString &name);
+int SwitcherGetCategory(obs_source_t *scene);
+void SwitcherSetCategory(obs_source_t *scene, int category);
 
 /* Compact stereo peak meter drawn next to an input's thumbnail */
 class SwitcherVuMeter : public QWidget {
@@ -50,6 +62,8 @@ class SwitcherInputTile : public QFrame {
 	QPointer<QLabel> numberLabel;
 	QPointer<QLabel> nameLabel;
 	QPointer<QFrame> header;
+	QPointer<QFrame> categoryMark;
+	int category = 0;
 	QPointer<QPushButton> loopButton;
 	QPointer<QPushButton> playButton;
 	QPointer<QPushButton> audioButton;
@@ -78,6 +92,8 @@ class SwitcherInputTile : public QFrame {
 protected:
 	bool eventFilter(QObject *obj, QEvent *event) override;
 	void contextMenuEvent(QContextMenuEvent *event) override;
+	void showEvent(QShowEvent *event) override;
+	void hideEvent(QHideEvent *event) override;
 
 public:
 	SwitcherInputTile(obs_source_t *source, QWidget *parent = nullptr);
@@ -88,6 +104,8 @@ public:
 
 	void SetNumber(int number);
 	void UpdateName();
+	void UpdateCategory();
+	inline int Category() const { return category; }
 	void SetLiveState(bool preview, bool program);
 	void SetOverlayStates(const std::array<OBSSource, SWITCHER_OVERLAY_COUNT> &overlays);
 
@@ -109,10 +127,15 @@ class SwitcherInputGrid : public QScrollArea {
 	QPointer<QWidget> contents;
 	FlowLayout *flowLayout = nullptr;
 	std::vector<QPointer<SwitcherInputTile>> tiles;
+	int filter = 0;
+
+	void RebuildLayout();
 
 public:
 	SwitcherInputGrid(QWidget *parent = nullptr);
 	~SwitcherInputGrid();
+
+	void SetFilter(int category);
 
 	void SetScenes(const std::vector<OBSSource> &scenes);
 	void SetLiveStates(obs_source_t *preview, obs_source_t *program);
@@ -126,4 +149,25 @@ signals:
 	void OverlayRequested(OBSSource source, int index);
 	void ProjectorRequested(OBSSource source);
 	void MenuRequested(OBSSource source, const QPoint &globalPos);
+};
+
+/* Colored category tabs above the input grid: All, then one per category.
+ * Right-click a category to rename it. */
+class SwitcherInputTabs : public QFrame {
+	Q_OBJECT
+
+	QButtonGroup *group = nullptr;
+	std::vector<QPushButton *> buttons;
+
+	void RenameCategory(int category);
+
+public:
+	SwitcherInputTabs(QWidget *parent = nullptr);
+
+	void UpdateNames();
+	int CurrentFilter() const;
+
+signals:
+	void FilterChanged(int category);
+	void CategoriesRenamed();
 };

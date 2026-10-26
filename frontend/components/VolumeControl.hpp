@@ -81,6 +81,11 @@ private:
 	QPushButton *muteButton;
 	QPushButton *monitorButton;
 
+	/* Switcher Mode bus routing: M, A and B map to audio tracks 1-3 */
+	QFrame *busFrame;
+	QPushButton *busButtons[3];
+	bool showBusButtons = false;
+
 	OBSFader obs_fader;
 
 	QString sourceName;
@@ -154,6 +159,7 @@ public:
 	void setContextMenu(QMenu *cm) { contextMenu = cm; }
 
 	bool isVertical() const { return vertical; }
+	void setShowBusButtons(bool show);
 	void setVertical(bool vertical);
 
 	void updateTabOrder();

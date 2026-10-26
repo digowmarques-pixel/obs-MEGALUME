@@ -25,6 +25,7 @@
 #include "OBSProjector.hpp"
 
 #include <components/SceneTree.hpp>
+#include <components/SwitcherBusMeters.hpp>
 #include <components/SwitcherInputGrid.hpp>
 #include <dialogs/NameDialog.hpp>
 
@@ -120,6 +121,7 @@ void OBSBasic::SetSwitcherMode(bool enable, bool applyLayout)
 
 	switcherMode = enable;
 	config_set_bool(App()->GetUserConfig(), "BasicWindow", "SwitcherMode", enable);
+	emit userSettingChanged("BasicWindow", "SwitcherMode");
 
 	{
 		QSignalBlocker blocker(ui->actionSwitcherMode);
@@ -134,6 +136,7 @@ void OBSBasic::SetSwitcherMode(bool enable, bool applyLayout)
 	if (enable) {
 		CreateSwitcherBar();
 		CreateSwitcherInputGrid();
+		CreateSwitcherBusMeters();
 
 		if (!IsPreviewProgramMode()) {
 			SetPreviewProgramMode(true);
@@ -156,6 +159,7 @@ void OBSBasic::SetSwitcherMode(bool enable, bool applyLayout)
 	} else {
 		DestroySwitcherBar();
 		DestroySwitcherInputGrid();
+		DestroySwitcherBusMeters();
 
 		if (applyLayout && !switcherPrevDockState.isEmpty()) {
 			restoreState(switcherPrevDockState);
@@ -370,8 +374,17 @@ void OBSBasic::CreateSwitcherInputGrid()
 
 	/* The grid takes the place of the scene list inside the scenes dock,
 	 * so the dock keeps its saved position and toolbar */
+	switcherInputTabs = new SwitcherInputTabs(ui->scenesFrame);
+	ui->verticalLayout_12->insertWidget(0, switcherInputTabs);
+
 	switcherInputGrid = new SwitcherInputGrid(ui->scenesFrame);
-	ui->verticalLayout_12->insertWidget(0, switcherInputGrid, 1);
+	switcherInputGrid->SetFilter(switcherInputTabs->CurrentFilter());
+	ui->verticalLayout_12->insertWidget(1, switcherInputGrid, 1);
+
+	connect(switcherInputTabs.data(), &SwitcherInputTabs::FilterChanged, switcherInputGrid.data(),
+		&SwitcherInputGrid::SetFilter);
+	connect(switcherInputTabs.data(), &SwitcherInputTabs::CategoriesRenamed, this,
+		&OBSBasic::RefreshSwitcherInputs);
 	ui->scenes->setVisible(false);
 	ui->scenesDock->setWindowTitle(QTStr("Switcher.Inputs"));
 
@@ -400,8 +413,8 @@ void OBSBasic::CreateSwitcherInputGrid()
 
 	connect(switcherInputGrid.data(), &SwitcherInputGrid::MenuRequested, this,
 		[this](OBSSource source, const QPoint &globalPos) {
-			SetCurrentScene(source);
-
+			/* Only the actions that work on the selected scene select it,
+			 * so opening the menu leaves Preview alone */
 			QMenu menu(this);
 			menu.addAction(QTStr("Rename"), this, [this, source]() {
 				std::string name = obs_source_get_name(source);
@@ -420,10 +433,36 @@ void OBSBasic::CreateSwitcherInputGrid()
 
 				obs_source_set_name(source, name.c_str());
 			});
-			menu.addAction(QTStr("Filters"), this, &OBSBasic::OpenSceneFilters);
-			menu.addAction(QTStr("Projector.Open.Scene"), this, &OBSBasic::OpenSceneWindow);
+			QMenu *categoryMenu = menu.addMenu(QTStr("Switcher.Category"));
+			int currentCategory = SwitcherGetCategory(source);
+			for (int i = 0; i <= SWITCHER_CATEGORY_COUNT; i++) {
+				QString name = i == 0 ? QTStr("Switcher.Category.None") : SwitcherCategoryName(i);
+				QAction *action = categoryMenu->addAction(name, this, [this, source, i]() {
+					SwitcherSetCategory(source, i);
+					RefreshSwitcherInputs();
+				});
+				action->setCheckable(true);
+				action->setChecked(i == currentCategory);
+
+				QColor color = SwitcherCategoryColor(i);
+				if (color.isValid()) {
+					QPixmap swatch(12, 12);
+					swatch.fill(color);
+					action->setIcon(QIcon(swatch));
+				}
+			}
+
+			menu.addAction(QTStr("Filters"), this, [this, source]() {
+				SetCurrentScene(source);
+				OpenSceneFilters();
+			});
+			menu.addAction(QTStr("Projector.Open.Scene"), this,
+				       [this, source]() { OpenProjector(source, -1, ProjectorType::Scene); });
 			menu.addSeparator();
-			menu.addAction(QTStr("Remove"), this, &OBSBasic::RemoveSelectedScene);
+			menu.addAction(QTStr("Remove"), this, [this, source]() {
+				SetCurrentScene(source);
+				RemoveSelectedScene();
+			});
 			menu.exec(globalPos);
 		});
 
@@ -447,6 +486,7 @@ void OBSBasic::DestroySwitcherInputGrid()
 	}
 
 	delete switcherInputGrid;
+	delete switcherInputTabs;
 	ui->scenes->setVisible(true);
 	ui->scenesDock->setWindowTitle(QTStr("Basic.Main.Scenes"));
 }
@@ -485,9 +525,9 @@ void OBSBasic::RefreshSwitcherInputs()
 
 	/* An overlay whose scene was removed has nothing left to control it */
 	for (int i = 0; i < SWITCHER_OVERLAY_COUNT; i++) {
-		OBSSourceAutoRelease overlay = obs_get_output_source(SWITCHER_OVERLAY_CHANNEL + i);
+		OBSSource overlay = OBSGetStrongRef(switcherOverlayScenes[i]);
 		if (overlay && std::find(scenes.begin(), scenes.end(), overlay.Get()) == scenes.end()) {
-			obs_set_output_source(SWITCHER_OVERLAY_CHANNEL + i, nullptr);
+			ToggleSwitcherOverlay(overlay, i);
 		}
 	}
 
@@ -507,8 +547,7 @@ void OBSBasic::UpdateSwitcherInputStates()
 
 	std::array<OBSSource, SWITCHER_OVERLAY_COUNT> overlays;
 	for (int i = 0; i < SWITCHER_OVERLAY_COUNT; i++) {
-		OBSSourceAutoRelease overlay = obs_get_output_source(SWITCHER_OVERLAY_CHANNEL + i);
-		overlays[i] = overlay.Get();
+		overlays[i] = OBSGetStrongRef(switcherOverlayScenes[i]);
 	}
 
 	switcherInputGrid->SetOverlayStates(overlays);
@@ -517,11 +556,92 @@ void OBSBasic::UpdateSwitcherInputStates()
 void OBSBasic::ToggleSwitcherOverlay(OBSSource source, int index)
 {
 	int channel = SWITCHER_OVERLAY_CHANNEL + index;
-	OBSSourceAutoRelease current = obs_get_output_source(channel);
+	OBSSource &transition = switcherOverlayTransitions[index];
 
-	obs_set_output_source(channel, current.Get() == source.Get() ? nullptr : source.Get());
-	blog(LOG_INFO, "Switcher overlay %d %s '%s'", index + 1, current.Get() == source.Get() ? "off" : "on",
-	     obs_source_get_name(source));
+	if (!transition) {
+		std::string name = "Switcher Overlay " + std::to_string(index + 1);
+		transition = OBSSourceAutoRelease(obs_source_create_private("fade_transition", name.c_str(), nullptr));
+		if (!transition) {
+			return;
+		}
+	}
+
+	/* The channel can be emptied behind our back, e.g. by a collection load */
+	OBSSourceAutoRelease current = obs_get_output_source(channel);
+	if (current.Get() != transition.Get()) {
+		obs_set_output_source(channel, transition);
+	}
+
+	bool turnOff = obs_weak_source_references_source(switcherOverlayScenes[index], source);
+	obs_source_t *target = turnOff ? nullptr : source.Get();
+
+	if (!obs_transition_start(transition, OBS_TRANSITION_MODE_AUTO, GetTransitionDuration(), target)) {
+		obs_transition_set(transition, target);
+	}
+
+	switcherOverlayScenes[index] = turnOff ? OBSWeakSource() : OBSGetWeakRef(source);
+	blog(LOG_INFO, "Switcher overlay %d %s '%s'", index + 1, turnOff ? "off" : "on", obs_source_get_name(source));
 
 	UpdateSwitcherInputStates();
+}
+
+void OBSBasic::ClearSwitcherOverlays()
+{
+	for (int i = 0; i < SWITCHER_OVERLAY_COUNT; i++) {
+		if (switcherOverlayTransitions[i]) {
+			OBSSourceAutoRelease current = obs_get_output_source(SWITCHER_OVERLAY_CHANNEL + i);
+			if (current.Get() == switcherOverlayTransitions[i].Get()) {
+				obs_set_output_source(SWITCHER_OVERLAY_CHANNEL + i, nullptr);
+			}
+		}
+
+		switcherOverlayTransitions[i] = nullptr;
+		switcherOverlayScenes[i] = nullptr;
+	}
+
+	UpdateSwitcherInputStates();
+}
+
+void OBSBasic::CreateSwitcherBusMeters()
+{
+	if (switcherMixerContainer) {
+		return;
+	}
+
+	/* Master/A/B output meters sit to the left of the source mixer */
+	switcherMixer = ui->mixerDock->widget();
+	switcherMixerContainer = new QWidget();
+	switcherMixerContainer->setObjectName("switcherMixerContainer");
+
+	QHBoxLayout *layout = new QHBoxLayout(switcherMixerContainer);
+	layout->setContentsMargins(0, 0, 0, 0);
+	layout->setSpacing(0);
+	layout->addWidget(new SwitcherBusMeters(switcherMixerContainer));
+
+	if (switcherMixer) {
+		layout->addWidget(switcherMixer, 1);
+	}
+
+	ui->mixerDock->setWidget(switcherMixerContainer);
+
+	if (switcherMixer) {
+		switcherMixer->show();
+	}
+	switcherMixerContainer->show();
+}
+
+void OBSBasic::DestroySwitcherBusMeters()
+{
+	if (!switcherMixerContainer) {
+		return;
+	}
+
+	if (switcherMixer) {
+		switcherMixer->setParent(nullptr);
+		ui->mixerDock->setWidget(switcherMixer);
+		switcherMixer->show();
+	}
+
+	delete switcherMixerContainer;
+	switcherMixer = nullptr;
 }

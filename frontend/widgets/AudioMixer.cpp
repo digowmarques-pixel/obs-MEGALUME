@@ -235,6 +235,14 @@ AudioMixer::AudioMixer(QWidget *parent) : QFrame(parent)
 			[this](const std::string &category, const std::string &name) {
 				if (category == "BasicWindow" && name == "VerticalVolumeControl") {
 					updateLayout();
+				} else if (category == "BasicWindow" && name == "SwitcherMode") {
+					bool showBuses =
+						config_get_bool(App()->GetUserConfig(), "BasicWindow", "SwitcherMode");
+					for (auto &[uuid, control] : volumeList) {
+						if (control) {
+							control->setShowBusButtons(showBuses);
+						}
+					}
 				} else if (category == "BasicWindow" && name == "MixerShowInactive") {
 					updateShowInactive();
 				} else if (category == "BasicWindow" && name == "MixerKeepInactiveLast") {
@@ -332,6 +340,7 @@ VolumeControl *AudioMixer::createVolumeControl(obs_source_t *source)
 	control->setPinnedInMixer(isPinnedInMixer(source));
 
 	control->enableSlider(!isVolumeLocked(source));
+	control->setShowBusButtons(config_get_bool(App()->GetUserConfig(), "BasicWindow", "SwitcherMode"));
 
 	OBSBasic *main = OBSBasic::Get();
 
