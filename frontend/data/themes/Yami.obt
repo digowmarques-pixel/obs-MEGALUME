@@ -285,6 +285,15 @@
     * Note 2: Cannot be !editable
     * Note 3: Operands and operator MUST be separated by whitespace
     */
+
+    /* Switcher Mode */
+    --switcher_preview: #E07B10;
+    --switcher_program: #2E9E3E;
+    --switcher_title_text: var(--white1);
+    --switcher_clock_bg: #000000;
+    --switcher_clock_border: var(--white1);
+    --switcher_onair: #E33B57;
+    --switcher_bar_bg: var(--bg_base);
 }
 
 /* --------------------- */
@@ -2049,6 +2058,87 @@ OBSBasicFilters #widget_2 QPushButton {
     font-weight: bold;
     color: var(--text_light);
     margin-bottom: 4px;
+}
+
+/* Switcher Mode */
+
+.label-switcher-preview,
+.label-switcher-program {
+    font-size: var(--font_base);
+    color: var(--switcher_title_text);
+    padding: 3px 8px;
+    margin-bottom: 0px;
+}
+
+.label-switcher-preview {
+    background: var(--switcher_preview);
+}
+
+.label-switcher-program {
+    background: var(--switcher_program);
+}
+
+#switcherTransitionColumn QPushButton {
+    height: 28px;
+    max-height: 28px;
+}
+
+#switcherTransitionColumn .switcher-quickplay {
+    font-weight: bold;
+}
+
+#switcherTransitionColumn #quickTransitionsLabel {
+    color: var(--text_muted);
+    font-size: var(--font_small);
+}
+
+#switcherClockFrame {
+    background: var(--switcher_clock_bg);
+    border: 2px solid var(--switcher_clock_border);
+    margin-top: 8px;
+}
+
+#switcherOnAirTime {
+    font-size: var(--font_xlarge);
+    font-weight: bold;
+    color: var(--text_light);
+}
+
+#switcherOnAirTime.state-active {
+    color: var(--switcher_onair);
+}
+
+#switcherClock {
+    font-size: var(--font_large);
+    color: var(--text_light);
+}
+
+#switcherBottomBar {
+    background: var(--switcher_bar_bg);
+    border: none;
+    border-top: 1px solid var(--border_color);
+    padding: 2px 4px;
+    spacing: 4px;
+}
+
+#switcherBottomBar #controlsFrame {
+    padding: 0px;
+}
+
+#switcherBottomBar #controlsFrame QPushButton {
+    margin: 0px 2px;
+}
+
+#switcherAddInput {
+    background-color: var(--button_bg);
+    color: var(--text);
+    border: 1px solid var(--button_border);
+    border-radius: var(--border_radius);
+    padding: var(--padding_large) var(--padding_wide);
+}
+
+#switcherAddInput:hover {
+    background-color: var(--button_bg_hover);
 }
 
 /* Settings Icons */

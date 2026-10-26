@@ -1146,6 +1146,8 @@ void OBSBasic::OBSInit()
 	ui->sideDocks->setChecked(sideDocks);
 	setDockCornersVertical(sideDocks);
 
+	InitSwitcherMode();
+
 	SystemTray(true);
 
 	TaskbarOverlayInit();

@@ -927,6 +927,16 @@
       <string>F11</string>
      </property>
     </action>
+    <action name="actionSwitcherMode">
+     <property name="checkable">
+      <bool>true</bool>
+     </property>
+     <property name="text">
+      <string>Basic.MainMenu.View.SwitcherMode</string>
+     </property>
+    </action>
+    <addaction name="actionSwitcherMode"/>
+    <addaction name="separator"/>
     <addaction name="resetUI"/>
     <addaction name="actionFullscreenInterface"/>
     <addaction name="separator"/>

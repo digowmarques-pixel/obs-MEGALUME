@@ -85,6 +85,7 @@ void OBSBasic::CreateProgramOptions()
 	addQuickTransition->setProperty("class", "icon-plus");
 
 	QLabel *quickTransitionsLabel = new QLabel(QTStr("QuickTransitions"));
+	quickTransitionsLabel->setObjectName("quickTransitionsLabel");
 	quickTransitionsLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 
 	quickTransitionsLayout->addWidget(quickTransitionsLabel);
@@ -174,10 +175,19 @@ void OBSBasic::CreateProgramOptions()
 	connect(transitionButton.data(), &QAbstractButton::clicked, this, &OBSBasic::TransitionClicked);
 	connect(addQuickTransition, &QAbstractButton::clicked, this, onAdd);
 	connect(configTransitions, &QAbstractButton::clicked, this, onConfig);
+
+	if (switcherMode) {
+		ApplySwitcherProgramOptions();
+	}
 }
 
 void OBSBasic::TogglePreviewProgramMode()
 {
+	/* Switcher Mode is built on top of Studio Mode, so leave it first */
+	if (switcherMode && IsPreviewProgramMode()) {
+		SetSwitcherMode(false, true);
+	}
+
 	SetPreviewProgramMode(!IsPreviewProgramMode());
 }
 
@@ -224,7 +234,8 @@ void OBSBasic::SetPreviewProgramMode(bool enabled)
 
 		programLabel = new QLabel(QTStr("StudioMode.ProgramSceneLabel"), this);
 		programLabel->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
-		programLabel->setProperty("class", "label-preview-title");
+		programLabel->setProperty("class", switcherMode ? "label-preview-title label-switcher-program"
+								: "label-preview-title");
 
 		programWidget = new QWidget();
 		programLayout = new QVBoxLayout();
@@ -342,7 +353,8 @@ void OBSBasic::ResizeProgram(uint32_t cx, uint32_t cy)
 
 void OBSBasic::UpdatePreviewProgramIndicators()
 {
-	bool labels = previewProgramMode ? config_get_bool(App()->GetUserConfig(), "BasicWindow", "StudioModeLabels")
+	bool labels = previewProgramMode ? (switcherMode ||
+					    config_get_bool(App()->GetUserConfig(), "BasicWindow", "StudioModeLabels"))
 					 : false;
 
 	ui->previewLabel->setVisible(labels);
@@ -355,10 +367,12 @@ void OBSBasic::UpdatePreviewProgramIndicators()
 		return;
 	}
 
-	QString preview =
-		QTStr("StudioMode.PreviewSceneName").arg(QT_UTF8(obs_source_get_name(GetCurrentSceneSource())));
+	QString previewName = QT_UTF8(obs_source_get_name(GetCurrentSceneSource()));
+	QString programName = QT_UTF8(obs_source_get_name(GetProgramSource()));
 
-	QString program = QTStr("StudioMode.ProgramSceneName").arg(QT_UTF8(obs_source_get_name(GetProgramSource())));
+	/* Switcher Mode shows bare scene names on colored title bars */
+	QString preview = switcherMode ? previewName : QTStr("StudioMode.PreviewSceneName").arg(previewName);
+	QString program = switcherMode ? programName : QTStr("StudioMode.ProgramSceneName").arg(programName);
 
 	if (ui->previewLabel->text() != preview) {
 		ui->previewLabel->setText(preview);

@@ -50,6 +50,7 @@ extern volatile bool recording_paused;
 class ColorSelect;
 class OBSAbout;
 class OBSBasicAdvAudio;
+class OBSBasicControls;
 class OBSBasicFilters;
 class OBSBasicInteraction;
 class OBSBasicProperties;
@@ -64,6 +65,7 @@ class VolumeControl;
 class YouTubeAppDock;
 #endif
 class QMessageBox;
+class QToolBar;
 class QWidgetAction;
 struct QuickTransition;
 
@@ -1465,6 +1467,31 @@ public:
 signals:
 	/* Studio Mode signal */
 	void PreviewProgramModeChanged(bool enabled);
+
+	/* -------------------------------------
+	 * MARK: - OBSBasic_SwitcherMode
+	 * -------------------------------------
+	 */
+private:
+	bool switcherMode = false;
+	QPointer<QToolBar> switcherBar;
+	QPointer<OBSBasicControls> switcherControls;
+	QByteArray switcherPrevDockState;
+	qint64 switcherOnAirStart = 0;
+
+	void InitSwitcherMode();
+	void SetSwitcherMode(bool enable, bool applyLayout);
+	void CreateSwitcherBar();
+	void DestroySwitcherBar();
+	void ApplySwitcherDockLayout();
+	void ApplySwitcherProgramOptions();
+	void UpdateSwitcherOnAirTimer();
+
+private slots:
+	void on_actionSwitcherMode_triggered(bool checked);
+
+public:
+	inline bool IsSwitcherMode() const { return switcherMode; }
 
 	/* -------------------------------------
 	 * MARK: - OBSBasic_SysTray

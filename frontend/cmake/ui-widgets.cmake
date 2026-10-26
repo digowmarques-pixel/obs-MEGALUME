@@ -39,6 +39,7 @@ target_sources(
     widgets/OBSBasic_StatusBar.cpp
     widgets/OBSBasic_Streaming.cpp
     widgets/OBSBasic_StudioMode.cpp
+    widgets/OBSBasic_SwitcherMode.cpp
     widgets/OBSBasic_SysTray.cpp
     widgets/OBSBasic_Transitions.cpp
     widgets/OBSBasic_Updater.cpp

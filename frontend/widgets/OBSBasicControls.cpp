@@ -283,3 +283,20 @@ void OBSBasicControls::EnableVirtualCamButtons()
 	ui->virtualCamButton->setVisible(true);
 	ui->virtualCamConfigButton->setVisible(true);
 }
+
+void OBSBasicControls::SetHorizontalLayout(bool horizontal)
+{
+	ui->buttonsVLayout->setDirection(horizontal ? QBoxLayout::LeftToRight : QBoxLayout::TopToBottom);
+	ui->buttonsVLayout->setSpacing(horizontal ? 4 : 0);
+
+	if (horizontal) {
+		ui->expVSpacer->changeSize(0, 0, QSizePolicy::Expanding, QSizePolicy::Minimum);
+	} else {
+		ui->expVSpacer->changeSize(0, 0, QSizePolicy::Minimum, QSizePolicy::Expanding);
+	}
+
+	/* Studio Mode is always on in the horizontal (switcher) layout */
+	ui->modeSwitch->setVisible(!horizontal);
+
+	ui->buttonsVLayout->invalidate();
+}

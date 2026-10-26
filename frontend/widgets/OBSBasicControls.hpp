@@ -53,6 +53,8 @@ public:
 	OBSBasicControls(OBSBasic *main);
 	inline ~OBSBasicControls() {}
 
+	void SetHorizontalLayout(bool horizontal);
+
 signals:
 	void StreamButtonClicked();
 	void BroadcastButtonClicked();

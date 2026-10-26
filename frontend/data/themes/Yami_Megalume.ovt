@@ -1,0 +1,60 @@
+/* ------------------------------------------------------------------------- *
+ *                                                                           *
+ * Megalume: a broadcast switcher style variant of Yami, made to go with     *
+ * Switcher Mode (View > Switcher Mode). Near-black panels, neutral grey     *
+ * buttons, blue selection and orange/green Preview and Program bars.        *
+ *                                                                           *
+ * ------------------------------------------------------------------------- */
+
+@OBSThemeMeta {
+    name: 'Megalume';
+    id: 'com.obsproject.Yami.Megalume';
+    extends: 'com.obsproject.Yami';
+    author: 'MEGALUME';
+    dark: 'true';
+}
+
+@OBSThemeVars {
+    --grey1: rgb(92,92,92);
+    --grey2: rgb(78,78,78);
+    --grey3: rgb(66,66,66);
+    --grey4: rgb(54,54,54);
+    --grey5: rgb(44,44,44);
+    --grey6: rgb(34,34,34);
+    --grey7: rgb(26,26,26);
+    --grey8: rgb(14,14,14);
+
+    --bg_window: var(--grey7);
+    --bg_base: var(--grey6);
+    --bg_preview: rgb(0,0,0);
+
+    --primary: rgb(38,88,160);
+    --primary_light: rgb(52,110,192);
+    --primary_lighter: rgb(92,144,220);
+    --primary_dark: rgb(30,70,128);
+    --primary_darker: rgb(22,52,96);
+
+    --border_radius: 2px;
+    --border_radius_small: 1px;
+    --border_radius_large: 3px;
+
+    --switcher_preview: rgb(232,128,20);
+    --switcher_program: rgb(40,160,60);
+}
+
+QDockWidget::title {
+    background-color: var(--grey5);
+    text-align: left;
+    padding-left: 6px;
+}
+
+/* Output buttons in the bottom bar turn red while live, like a tally */
+#switcherBottomBar #streamButton:!hover:!pressed.state-active,
+#switcherBottomBar #recordButton:!hover:!pressed.state-active {
+    background: rgb(192,28,55);
+}
+
+#switcherBottomBar #streamButton:hover:!pressed.state-active,
+#switcherBottomBar #recordButton:hover:!pressed.state-active {
+    background: rgb(225,59,87);
+}
