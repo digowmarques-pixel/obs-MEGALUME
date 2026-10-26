@@ -1494,6 +1494,7 @@ private:
 	void QueueSwitcherInputsRefresh();
 	void RefreshSwitcherInputs();
 	void UpdateSwitcherInputStates();
+	void ToggleSwitcherOverlay(OBSSource source, int index);
 
 private slots:
 	void on_actionSwitcherMode_triggered(bool checked);

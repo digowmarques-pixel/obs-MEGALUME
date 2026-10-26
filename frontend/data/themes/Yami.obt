@@ -2187,9 +2187,27 @@ OBSBasicFilters #widget_2 QPushButton {
 
 #switcherInputTile .switcher-input-button {
     font-size: var(--font_small);
-    padding: 0px 4px;
-    height: 22px;
-    max-height: 22px;
+    padding: 0px 3px;
+    margin: 0px;
+    height: 20px;
+    max-height: 20px;
+    min-width: 0px;
+    border-radius: 0px;
+    qproperty-iconSize: 12px;
+}
+
+#switcherInputTile .switcher-input-button.state-active {
+    background: var(--switcher_program);
+    border-color: var(--switcher_program);
+    color: var(--switcher_title_text);
+}
+
+#switcherInputTile .switcher-input-button:disabled {
+    color: var(--text_disabled);
+}
+
+.icon-switcher-projector {
+    qproperty-icon: url(theme:Dark/popout.svg);
 }
 
 /* Settings Icons */

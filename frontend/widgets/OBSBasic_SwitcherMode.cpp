@@ -22,6 +22,7 @@
 
 #include "OBSBasic.hpp"
 #include "OBSBasicControls.hpp"
+#include "OBSProjector.hpp"
 
 #include <components/SceneTree.hpp>
 #include <components/SwitcherInputGrid.hpp>
@@ -37,7 +38,13 @@
 #include <QToolBar>
 #include <QToolButton>
 
+#include <algorithm>
+
 #define SWITCHER_THEME_ID "com.obsproject.Yami.Megalume"
+
+/* Overlays use their own output channels, drawn on top of Program. Channels
+ * 0-6 belong to OBS and low numbers are popular with plugins. */
+#define SWITCHER_OVERLAY_CHANNEL 40
 
 void OBSBasic::InitSwitcherMode()
 {
@@ -386,6 +393,11 @@ void OBSBasic::CreateSwitcherInputGrid()
 		RemoveSelectedScene();
 	});
 
+	connect(switcherInputGrid.data(), &SwitcherInputGrid::OverlayRequested, this, &OBSBasic::ToggleSwitcherOverlay);
+
+	connect(switcherInputGrid.data(), &SwitcherInputGrid::ProjectorRequested, this,
+		[this](OBSSource source) { OpenProjector(source, -1, ProjectorType::Scene); });
+
 	connect(switcherInputGrid.data(), &SwitcherInputGrid::MenuRequested, this,
 		[this](OBSSource source, const QPoint &globalPos) {
 			SetCurrentScene(source);
@@ -470,6 +482,15 @@ void OBSBasic::RefreshSwitcherInputs()
 	}
 
 	switcherInputGrid->SetScenes(scenes);
+
+	/* An overlay whose scene was removed has nothing left to control it */
+	for (int i = 0; i < SWITCHER_OVERLAY_COUNT; i++) {
+		OBSSourceAutoRelease overlay = obs_get_output_source(SWITCHER_OVERLAY_CHANNEL + i);
+		if (overlay && std::find(scenes.begin(), scenes.end(), overlay.Get()) == scenes.end()) {
+			obs_set_output_source(SWITCHER_OVERLAY_CHANNEL + i, nullptr);
+		}
+	}
+
 	UpdateSwitcherInputStates();
 }
 
@@ -483,4 +504,24 @@ void OBSBasic::UpdateSwitcherInputStates()
 	OBSSource program = IsPreviewProgramMode() ? GetProgramSource() : preview;
 
 	switcherInputGrid->SetLiveStates(preview, program);
+
+	std::array<OBSSource, SWITCHER_OVERLAY_COUNT> overlays;
+	for (int i = 0; i < SWITCHER_OVERLAY_COUNT; i++) {
+		OBSSourceAutoRelease overlay = obs_get_output_source(SWITCHER_OVERLAY_CHANNEL + i);
+		overlays[i] = overlay.Get();
+	}
+
+	switcherInputGrid->SetOverlayStates(overlays);
+}
+
+void OBSBasic::ToggleSwitcherOverlay(OBSSource source, int index)
+{
+	int channel = SWITCHER_OVERLAY_CHANNEL + index;
+	OBSSourceAutoRelease current = obs_get_output_source(channel);
+
+	obs_set_output_source(channel, current.Get() == source.Get() ? nullptr : source.Get());
+	blog(LOG_INFO, "Switcher overlay %d %s '%s'", index + 1, current.Get() == source.Get() ? "off" : "on",
+	     obs_source_get_name(source));
+
+	UpdateSwitcherInputStates();
 }
