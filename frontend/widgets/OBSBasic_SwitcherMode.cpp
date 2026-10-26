@@ -30,6 +30,8 @@
 #include <dialogs/NameDialog.hpp>
 #include <dialogs/SwitcherInputSelect.hpp>
 #include <dialogs/SwitcherInputSettings.hpp>
+#include <dialogs/SwitcherStreamSettings.hpp>
+#include <utility/BasicOutputHandler.hpp>
 
 #include <qt-wrappers.hpp>
 
@@ -76,6 +78,14 @@ void OBSBasic::InitSwitcherMode()
 	connect(this, &OBSBasic::RecordingStarted, this, startOnAir);
 	connect(this, &OBSBasic::StreamingStopped, this, stopOnAir, Qt::QueuedConnection);
 	connect(this, &OBSBasic::RecordingStopped, this, stopOnAir, Qt::QueuedConnection);
+
+	/* Extra stream destinations share the main stream's encoders */
+	switcherMultistream = new SwitcherMultistream(this, [this]() -> OBSOutputAutoRelease {
+		if (!outputHandler || !outputHandler->StreamingActive()) {
+			return nullptr;
+		}
+		return outputHandler->StreamingOutput();
+	});
 
 	QSignalBlocker blocker(ui->actionSwitcherMode);
 	ui->actionSwitcherMode->setChecked(enabled);
@@ -250,6 +260,13 @@ void OBSBasic::CreateSwitcherBar()
 		barLayout->addWidget(switcherControls, 1);
 		switcherControls->setVisible(true);
 	}
+
+	QToolButton *destinations = new QToolButton(barContents);
+	destinations->setObjectName("switcherDestinations");
+	destinations->setText(QTStr("Switcher.Stream.Destinations"));
+	destinations->setToolButtonStyle(Qt::ToolButtonTextOnly);
+	connect(destinations, &QToolButton::clicked, this, &OBSBasic::OpenSwitcherStreamSettings);
+	barLayout->addWidget(destinations);
 
 	switcherBar->addWidget(barContents);
 	addToolBar(Qt::BottomToolBarArea, switcherBar);
@@ -683,5 +700,18 @@ void OBSBasic::OpenSwitcherInputSettings(OBSSource scene)
 
 	SwitcherInputSettings *dialog = new SwitcherInputSettings(this, scene);
 	connect(dialog, &SwitcherInputSettings::Changed, this, &OBSBasic::QueueSwitcherInputsRefresh);
+	dialog->show();
+}
+
+void OBSBasic::OpenSwitcherStreamSettings()
+{
+	if (SwitcherStreamSettings *open = findChild<SwitcherStreamSettings *>()) {
+		open->raise();
+		open->activateWindow();
+		return;
+	}
+
+	SwitcherStreamSettings *dialog = new SwitcherStreamSettings(this, switcherMultistream);
+	connect(dialog, &SwitcherStreamSettings::OpenMainStreamSettings, this, &OBSBasic::on_action_Settings_triggered);
 	dialog->show();
 }

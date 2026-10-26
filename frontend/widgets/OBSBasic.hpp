@@ -53,6 +53,7 @@ class OBSBasicAdvAudio;
 class OBSBasicControls;
 class SwitcherInputGrid;
 class SwitcherInputTabs;
+class SwitcherMultistream;
 class OBSBasicFilters;
 class OBSBasicInteraction;
 class OBSBasicProperties;
@@ -1480,6 +1481,7 @@ private:
 	QPointer<OBSBasicControls> switcherControls;
 	QPointer<SwitcherInputGrid> switcherInputGrid;
 	QPointer<SwitcherInputTabs> switcherInputTabs;
+	QPointer<SwitcherMultistream> switcherMultistream;
 	bool switcherInputsRefreshQueued = false;
 	QPointer<QWidget> switcherMixerContainer;
 	QPointer<QWidget> switcherMixer;
@@ -1504,6 +1506,7 @@ private:
 	void ToggleSwitcherOverlay(OBSSource source, int index);
 	void OpenSwitcherInputSelect();
 	void OpenSwitcherInputSettings(OBSSource scene);
+	void OpenSwitcherStreamSettings();
 	void ClearSwitcherOverlays();
 	void CreateSwitcherBusMeters();
 	void DestroySwitcherBusMeters();

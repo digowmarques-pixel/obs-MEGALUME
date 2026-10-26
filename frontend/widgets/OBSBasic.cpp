@@ -46,6 +46,7 @@
 #include <utility/WhatsNewInfoThread.hpp>
 #endif
 #include <widgets/AudioMixer.hpp>
+#include <dialogs/SwitcherStreamSettings.hpp>
 #include <widgets/OBSProjector.hpp>
 
 #include <OBSStudioAPI.hpp>
@@ -2054,6 +2055,11 @@ void OBSBasic::OnEvent(enum obs_frontend_event event)
 	/* Overlay channels are emptied along with the old scene collection */
 	if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CLEANUP) {
 		ClearSwitcherOverlays();
+	}
+
+	/* Extra stream destinations are stored per profile */
+	if (event == OBS_FRONTEND_EVENT_PROFILE_CHANGED && switcherMultistream) {
+		switcherMultistream->Load();
 	}
 
 	if (switcherInputGrid) {

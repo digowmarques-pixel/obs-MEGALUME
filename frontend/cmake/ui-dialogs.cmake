@@ -47,4 +47,6 @@ target_sources(
     dialogs/SwitcherInputSelect.hpp
     dialogs/SwitcherInputSettings.cpp
     dialogs/SwitcherInputSettings.hpp
+    dialogs/SwitcherStreamSettings.cpp
+    dialogs/SwitcherStreamSettings.hpp
 )
