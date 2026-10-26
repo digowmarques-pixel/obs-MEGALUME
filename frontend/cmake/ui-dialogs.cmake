@@ -45,4 +45,6 @@ target_sources(
     dialogs/OBSWhatsNew.hpp
     dialogs/SwitcherInputSelect.cpp
     dialogs/SwitcherInputSelect.hpp
+    dialogs/SwitcherInputSettings.cpp
+    dialogs/SwitcherInputSettings.hpp
 )

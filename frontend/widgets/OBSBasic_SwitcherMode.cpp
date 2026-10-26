@@ -29,6 +29,7 @@
 #include <components/SwitcherInputGrid.hpp>
 #include <dialogs/NameDialog.hpp>
 #include <dialogs/SwitcherInputSelect.hpp>
+#include <dialogs/SwitcherInputSettings.hpp>
 
 #include <qt-wrappers.hpp>
 
@@ -418,11 +419,17 @@ void OBSBasic::CreateSwitcherInputGrid()
 	connect(switcherInputGrid.data(), &SwitcherInputGrid::ProjectorRequested, this,
 		[this](OBSSource source) { OpenProjector(source, -1, ProjectorType::Scene); });
 
+	connect(switcherInputGrid.data(), &SwitcherInputGrid::SettingsRequested, this,
+		&OBSBasic::OpenSwitcherInputSettings);
+
 	connect(switcherInputGrid.data(), &SwitcherInputGrid::MenuRequested, this,
 		[this](OBSSource source, const QPoint &globalPos) {
 			/* Only the actions that work on the selected scene select it,
 			 * so opening the menu leaves Preview alone */
 			QMenu menu(this);
+			menu.addAction(QTStr("Switcher.Input.Settings") + "...", this,
+				       [this, source]() { OpenSwitcherInputSettings(source); });
+			menu.addSeparator();
 			menu.addAction(QTStr("Rename"), this, [this, source]() {
 				std::string name = obs_source_get_name(source);
 				if (!NameDialog::AskForName(this, QTStr("Rename"), QTStr("Basic.Main.AddSceneDlg.Text"),
@@ -660,5 +667,21 @@ void OBSBasic::OpenSwitcherInputSelect()
 		/* New inputs land in Preview, ready to take */
 		SetCurrentScene(scene);
 	});
+	dialog->show();
+}
+
+void OBSBasic::OpenSwitcherInputSettings(OBSSource scene)
+{
+	/* One settings window per input; asking again brings it forward */
+	for (SwitcherInputSettings *open : findChildren<SwitcherInputSettings *>()) {
+		if (open->GetScene() == scene) {
+			open->raise();
+			open->activateWindow();
+			return;
+		}
+	}
+
+	SwitcherInputSettings *dialog = new SwitcherInputSettings(this, scene);
+	connect(dialog, &SwitcherInputSettings::Changed, this, &OBSBasic::QueueSwitcherInputsRefresh);
 	dialog->show();
 }

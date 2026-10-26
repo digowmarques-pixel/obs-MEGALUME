@@ -1503,6 +1503,7 @@ private:
 	void UpdateSwitcherInputStates();
 	void ToggleSwitcherOverlay(OBSSource source, int index);
 	void OpenSwitcherInputSelect();
+	void OpenSwitcherInputSettings(OBSSource scene);
 	void ClearSwitcherOverlays();
 	void CreateSwitcherBusMeters();
 	void DestroySwitcherBusMeters();
