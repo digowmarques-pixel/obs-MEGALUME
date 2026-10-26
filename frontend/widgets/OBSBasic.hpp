@@ -51,6 +51,7 @@ class ColorSelect;
 class OBSAbout;
 class OBSBasicAdvAudio;
 class OBSBasicControls;
+class SwitcherInputGrid;
 class OBSBasicFilters;
 class OBSBasicInteraction;
 class OBSBasicProperties;
@@ -1476,6 +1477,8 @@ private:
 	bool switcherMode = false;
 	QPointer<QToolBar> switcherBar;
 	QPointer<OBSBasicControls> switcherControls;
+	QPointer<SwitcherInputGrid> switcherInputGrid;
+	bool switcherInputsRefreshQueued = false;
 	QByteArray switcherPrevDockState;
 	qint64 switcherOnAirStart = 0;
 
@@ -1486,6 +1489,11 @@ private:
 	void ApplySwitcherDockLayout();
 	void ApplySwitcherProgramOptions();
 	void UpdateSwitcherOnAirTimer();
+	void CreateSwitcherInputGrid();
+	void DestroySwitcherInputGrid();
+	void QueueSwitcherInputsRefresh();
+	void RefreshSwitcherInputs();
+	void UpdateSwitcherInputStates();
 
 private slots:
 	void on_actionSwitcherMode_triggered(bool checked);

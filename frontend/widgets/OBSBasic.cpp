@@ -2051,6 +2051,18 @@ void OBSBasic::SetDisplayAffinity(QWindow *window)
 
 void OBSBasic::OnEvent(enum obs_frontend_event event)
 {
+	if (switcherInputGrid) {
+		switch (event) {
+		case OBS_FRONTEND_EVENT_SCENE_CHANGED:
+		case OBS_FRONTEND_EVENT_PREVIEW_SCENE_CHANGED:
+		case OBS_FRONTEND_EVENT_TRANSITION_STOPPED:
+			UpdateSwitcherInputStates();
+			break;
+		default:
+			break;
+		}
+	}
+
 	if (api) {
 		api->on_event(event);
 	}

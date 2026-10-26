@@ -294,6 +294,9 @@
     --switcher_clock_border: var(--white1);
     --switcher_onair: #E33B57;
     --switcher_bar_bg: var(--bg_base);
+    --switcher_input: #2A5BA8;
+    --switcher_tile_bg: var(--grey6);
+    --switcher_tile_border: var(--grey4);
 }
 
 /* --------------------- */
@@ -2139,6 +2142,54 @@ OBSBasicFilters #widget_2 QPushButton {
 
 #switcherAddInput:hover {
     background-color: var(--button_bg_hover);
+}
+
+/* Switcher inputs */
+
+#switcherInputGrid,
+#switcherInputGridContents {
+    background: var(--bg_base);
+}
+
+#switcherInputTile {
+    background: var(--switcher_tile_bg);
+    border: 1px solid var(--switcher_tile_border);
+}
+
+#switcherInputTile.state-preview {
+    border-color: var(--switcher_preview);
+}
+
+#switcherInputTile.state-program {
+    border-color: var(--switcher_program);
+}
+
+#switcherInputHeader {
+    background: var(--switcher_input);
+}
+
+#switcherInputHeader.state-preview {
+    background: var(--switcher_preview);
+}
+
+#switcherInputHeader.state-program {
+    background: var(--switcher_program);
+}
+
+#switcherInputNumber {
+    font-weight: bold;
+    color: var(--switcher_title_text);
+}
+
+#switcherInputName {
+    color: var(--switcher_title_text);
+}
+
+#switcherInputTile .switcher-input-button {
+    font-size: var(--font_small);
+    padding: 0px 4px;
+    height: 22px;
+    max-height: 22px;
 }
 
 /* Settings Icons */

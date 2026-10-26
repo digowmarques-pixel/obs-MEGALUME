@@ -23,6 +23,10 @@
 #include "OBSBasic.hpp"
 #include "OBSBasicControls.hpp"
 
+#include <components/SceneTree.hpp>
+#include <components/SwitcherInputGrid.hpp>
+#include <dialogs/NameDialog.hpp>
+
 #include <qt-wrappers.hpp>
 
 #include <QDateTime>
@@ -122,6 +126,7 @@ void OBSBasic::SetSwitcherMode(bool enable, bool applyLayout)
 
 	if (enable) {
 		CreateSwitcherBar();
+		CreateSwitcherInputGrid();
 
 		if (!IsPreviewProgramMode()) {
 			SetPreviewProgramMode(true);
@@ -143,6 +148,7 @@ void OBSBasic::SetSwitcherMode(bool enable, bool applyLayout)
 		}
 	} else {
 		DestroySwitcherBar();
+		DestroySwitcherInputGrid();
 
 		if (applyLayout && !switcherPrevDockState.isEmpty()) {
 			restoreState(switcherPrevDockState);
@@ -270,10 +276,6 @@ void OBSBasic::ApplySwitcherDockLayout()
 
 	resizeDocks(inputDocks, {bottomHeight, bottomHeight, bottomHeight}, Qt::Vertical);
 	resizeDocks(inputDocks, {cx * 50 / 100, cx * 18 / 100, cx * 32 / 100}, Qt::Horizontal);
-
-	if (!ui->scenes->GetGridMode()) {
-		on_actionSceneGridMode_triggered();
-	}
 }
 
 void OBSBasic::ApplySwitcherProgramOptions()
@@ -351,4 +353,134 @@ void OBSBasic::UpdateSwitcherOnAirTimer()
 	if (clockLabel->text() != clock) {
 		clockLabel->setText(clock);
 	}
+}
+
+void OBSBasic::CreateSwitcherInputGrid()
+{
+	if (switcherInputGrid) {
+		return;
+	}
+
+	/* The grid takes the place of the scene list inside the scenes dock,
+	 * so the dock keeps its saved position and toolbar */
+	switcherInputGrid = new SwitcherInputGrid(ui->scenesFrame);
+	ui->verticalLayout_12->insertWidget(0, switcherInputGrid, 1);
+	ui->scenes->setVisible(false);
+	ui->scenesDock->setWindowTitle(QTStr("Switcher.Inputs"));
+
+	connect(switcherInputGrid.data(), &SwitcherInputGrid::PreviewRequested, this,
+		[this](OBSSource source) { SetCurrentScene(source); });
+
+	connect(switcherInputGrid.data(), &SwitcherInputGrid::QuickPlayRequested, this,
+		[this](OBSSource source) { TransitionToScene(source); });
+
+	connect(switcherInputGrid.data(), &SwitcherInputGrid::CutRequested, this, [this](OBSSource source) {
+		/* A forced transition never reports stopping, so refresh the
+			 * Program title here */
+		TransitionToScene(source, true);
+		UpdatePreviewProgramIndicators();
+	});
+
+	connect(switcherInputGrid.data(), &SwitcherInputGrid::CloseRequested, this, [this](OBSSource source) {
+		SetCurrentScene(source);
+		RemoveSelectedScene();
+	});
+
+	connect(switcherInputGrid.data(), &SwitcherInputGrid::MenuRequested, this,
+		[this](OBSSource source, const QPoint &globalPos) {
+			SetCurrentScene(source);
+
+			QMenu menu(this);
+			menu.addAction(QTStr("Rename"), this, [this, source]() {
+				std::string name = obs_source_get_name(source);
+				if (!NameDialog::AskForName(this, QTStr("Rename"), QTStr("Basic.Main.AddSceneDlg.Text"),
+							    name, QT_UTF8(name.c_str())) ||
+				    name.empty() || name == obs_source_get_name(source)) {
+					return;
+				}
+
+				OBSSourceAutoRelease existing = obs_get_source_by_name(name.c_str());
+				if (existing) {
+					OBSMessageBox::warning(this, QTStr("NameExists.Title"),
+							       QTStr("NameExists.Text"));
+					return;
+				}
+
+				obs_source_set_name(source, name.c_str());
+			});
+			menu.addAction(QTStr("Filters"), this, &OBSBasic::OpenSceneFilters);
+			menu.addAction(QTStr("Projector.Open.Scene"), this, &OBSBasic::OpenSceneWindow);
+			menu.addSeparator();
+			menu.addAction(QTStr("Remove"), this, &OBSBasic::RemoveSelectedScene);
+			menu.exec(globalPos);
+		});
+
+	/* Follow the scene list: adds, removes, renames, reorders and
+	 * scene collection changes */
+	QAbstractItemModel *model = ui->scenes->model();
+	connect(model, &QAbstractItemModel::rowsInserted, switcherInputGrid,
+		[this]() { QueueSwitcherInputsRefresh(); });
+	connect(model, &QAbstractItemModel::rowsRemoved, switcherInputGrid, [this]() { QueueSwitcherInputsRefresh(); });
+	connect(model, &QAbstractItemModel::rowsMoved, switcherInputGrid, [this]() { QueueSwitcherInputsRefresh(); });
+	connect(model, &QAbstractItemModel::dataChanged, switcherInputGrid, [this]() { QueueSwitcherInputsRefresh(); });
+	connect(model, &QAbstractItemModel::modelReset, switcherInputGrid, [this]() { QueueSwitcherInputsRefresh(); });
+
+	RefreshSwitcherInputs();
+}
+
+void OBSBasic::DestroySwitcherInputGrid()
+{
+	if (!switcherInputGrid) {
+		return;
+	}
+
+	delete switcherInputGrid;
+	ui->scenes->setVisible(true);
+	ui->scenesDock->setWindowTitle(QTStr("Basic.Main.Scenes"));
+}
+
+void OBSBasic::QueueSwitcherInputsRefresh()
+{
+	if (switcherInputsRefreshQueued) {
+		return;
+	}
+
+	/* Batch bursts of list changes and stay out of tile signal handlers */
+	switcherInputsRefreshQueued = true;
+	QTimer::singleShot(0, this, [this]() {
+		switcherInputsRefreshQueued = false;
+		RefreshSwitcherInputs();
+	});
+}
+
+void OBSBasic::RefreshSwitcherInputs()
+{
+	if (!switcherInputGrid) {
+		return;
+	}
+
+	std::vector<OBSSource> scenes;
+	scenes.reserve(ui->scenes->count());
+
+	for (int i = 0; i < ui->scenes->count(); i++) {
+		OBSScene scene = GetOBSRef<OBSScene>(ui->scenes->item(i));
+		if (scene) {
+			scenes.emplace_back(obs_scene_get_source(scene));
+		}
+	}
+
+	switcherInputGrid->SetScenes(scenes);
+	UpdateSwitcherInputStates();
+}
+
+void OBSBasic::UpdateSwitcherInputStates()
+{
+	if (!switcherInputGrid) {
+		return;
+	}
+
+	OBSSource preview = GetCurrentSceneSource();
+	OBSSource program = IsPreviewProgramMode() ? GetProgramSource() : preview;
+
+	switcherInputGrid->SetLiveStates(preview, program);
 }
