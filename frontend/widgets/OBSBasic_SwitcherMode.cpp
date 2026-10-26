@@ -26,6 +26,7 @@
 #include <qt-wrappers.hpp>
 
 #include <QDateTime>
+#include <QHBoxLayout>
 #include <QLabel>
 #include <QMenu>
 #include <QTimer>
@@ -192,8 +193,18 @@ void OBSBasic::CreateSwitcherBar()
 	switcherBar->toggleViewAction()->setVisible(false);
 	switcherBar->setContextMenuPolicy(Qt::PreventContextMenu);
 
+	/* QToolBar manages the visibility of widgets added to it directly,
+	 * so everything goes into one container instead */
+	QWidget *barContents = new QWidget(switcherBar);
+	barContents->setObjectName("switcherBarContents");
+	barContents->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+
+	QHBoxLayout *barLayout = new QHBoxLayout(barContents);
+	barLayout->setContentsMargins(0, 0, 0, 0);
+	barLayout->setSpacing(4);
+
 	/* Add Input: new scenes are the switcher's inputs */
-	QToolButton *addInput = new QToolButton(switcherBar);
+	QToolButton *addInput = new QToolButton(barContents);
 	addInput->setObjectName("switcherAddInput");
 	addInput->setText(QTStr("Switcher.AddInput"));
 	addInput->setPopupMode(QToolButton::InstantPopup);
@@ -204,17 +215,18 @@ void OBSBasic::CreateSwitcherBar()
 	addInputMenu->addAction(QTStr("Switcher.AddInput.Source"), this, &OBSBasic::AddSourceDialog);
 	addInput->setMenu(addInputMenu);
 
-	switcherBar->addWidget(addInput);
-	switcherBar->addSeparator();
+	barLayout->addWidget(addInput);
 
 	/* Reuse the existing controls so their state stays in sync */
 	switcherControls = qobject_cast<OBSBasicControls *>(controlsDock->widget());
 	if (switcherControls) {
 		controlsDock->setWidget(nullptr);
 		switcherControls->SetHorizontalLayout(true);
-		switcherBar->addWidget(switcherControls);
+		barLayout->addWidget(switcherControls, 1);
+		switcherControls->setVisible(true);
 	}
 
+	switcherBar->addWidget(barContents);
 	addToolBar(Qt::BottomToolBarArea, switcherBar);
 	switcherBar->show();
 }
@@ -271,7 +283,7 @@ void OBSBasic::ApplySwitcherProgramOptions()
 	}
 
 	programOptions->setObjectName("switcherTransitionColumn");
-	programOptions->setFixedWidth(140);
+	programOptions->setFixedWidth(190);
 
 	if (transitionButton) {
 		transitionButton->setText(QTStr("Switcher.QuickPlay"));

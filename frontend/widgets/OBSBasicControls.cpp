@@ -295,6 +295,20 @@ void OBSBasicControls::SetHorizontalLayout(bool horizontal)
 		ui->expVSpacer->changeSize(0, 0, QSizePolicy::Minimum, QSizePolicy::Expanding);
 	}
 
+	/* Buttons ignore their width hint so they fill the dock; in a row they
+	 * need it, or they collapse to nothing */
+	for (QPushButton *button : ui->controlsFrame->findChildren<QPushButton *>()) {
+		QVariant original = button->property("verticalSizePolicy");
+		if (!original.isValid()) {
+			original = button->sizePolicy().horizontalPolicy();
+			button->setProperty("verticalSizePolicy", original);
+		}
+
+		QSizePolicy policy = button->sizePolicy();
+		policy.setHorizontalPolicy(horizontal ? QSizePolicy::Preferred : original.value<QSizePolicy::Policy>());
+		button->setSizePolicy(policy);
+	}
+
 	/* Studio Mode is always on in the horizontal (switcher) layout */
 	ui->modeSwitch->setVisible(!horizontal);
 
