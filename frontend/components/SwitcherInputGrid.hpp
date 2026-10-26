@@ -16,7 +16,7 @@ class OBSQTDisplay;
 class QLabel;
 class QPushButton;
 
-#define SWITCHER_OVERLAY_COUNT 4
+#define SWITCHER_OVERLAY_COUNT 8
 #define SWITCHER_CATEGORY_COUNT 6
 
 class QButtonGroup;
@@ -29,6 +29,22 @@ QString SwitcherCategoryName(int category);
 void SwitcherSetCategoryName(int category, const QString &name);
 int SwitcherGetCategory(obs_source_t *scene);
 void SwitcherSetCategory(obs_source_t *scene, int category);
+
+/* What clicking an input's thumbnail and its GO button do, per input */
+enum SwitcherClickAction {
+	SWITCHER_CLICK_PREVIEW,
+	SWITCHER_CLICK_CUT,
+	SWITCHER_CLICK_QUICKPLAY,
+	SWITCHER_CLICK_NOTHING
+};
+enum SwitcherGoAction { SWITCHER_GO_QUICKPLAY, SWITCHER_GO_CUT };
+int SwitcherGetClickAction(obs_source_t *scene);
+void SwitcherSetClickAction(obs_source_t *scene, int action);
+int SwitcherGetGoAction(obs_source_t *scene);
+void SwitcherSetGoAction(obs_source_t *scene, int action);
+
+/* Draws a source scaled to fit, for thumbnails and previews */
+void SwitcherRenderSourceFit(obs_source_t *source, uint32_t cx, uint32_t cy);
 
 /* Compact stereo peak meter drawn next to an input's thumbnail */
 class SwitcherVuMeter : public QWidget {
@@ -116,6 +132,7 @@ signals:
 	void CloseRequested(OBSSource source);
 	void OverlayRequested(OBSSource source, int index);
 	void ProjectorRequested(OBSSource source);
+	void SettingsRequested(OBSSource source);
 	void MenuRequested(OBSSource source, const QPoint &globalPos);
 };
 
@@ -148,6 +165,7 @@ signals:
 	void CloseRequested(OBSSource source);
 	void OverlayRequested(OBSSource source, int index);
 	void ProjectorRequested(OBSSource source);
+	void SettingsRequested(OBSSource source);
 	void MenuRequested(OBSSource source, const QPoint &globalPos);
 };
 

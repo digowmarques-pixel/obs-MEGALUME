@@ -81,6 +81,56 @@ void SwitcherSetCategory(obs_source_t *scene, int category)
 	obs_data_set_int(settings, "switcher_category", category);
 }
 
+int SwitcherGetClickAction(obs_source_t *scene)
+{
+	OBSDataAutoRelease settings = obs_source_get_private_settings(scene);
+	return (int)obs_data_get_int(settings, "switcher_click_action");
+}
+
+void SwitcherSetClickAction(obs_source_t *scene, int action)
+{
+	OBSDataAutoRelease settings = obs_source_get_private_settings(scene);
+	obs_data_set_int(settings, "switcher_click_action", action);
+}
+
+int SwitcherGetGoAction(obs_source_t *scene)
+{
+	OBSDataAutoRelease settings = obs_source_get_private_settings(scene);
+	return (int)obs_data_get_int(settings, "switcher_go_action");
+}
+
+void SwitcherSetGoAction(obs_source_t *scene, int action)
+{
+	OBSDataAutoRelease settings = obs_source_get_private_settings(scene);
+	obs_data_set_int(settings, "switcher_go_action", action);
+}
+
+void SwitcherRenderSourceFit(obs_source_t *source, uint32_t cx, uint32_t cy)
+{
+	uint32_t sourceCX = std::max(obs_source_get_width(source), 1u);
+	uint32_t sourceCY = std::max(obs_source_get_height(source), 1u);
+
+	int x, y;
+	float scale;
+
+	GetScaleAndCenterPos(sourceCX, sourceCY, cx, cy, x, y, scale);
+
+	int newCX = int(scale * float(sourceCX));
+	int newCY = int(scale * float(sourceCY));
+
+	gs_viewport_push();
+	gs_projection_push();
+	const bool previous = gs_set_linear_srgb(true);
+
+	gs_ortho(0.0f, float(sourceCX), 0.0f, float(sourceCY), -100.0f, 100.0f);
+	gs_set_viewport(x, y, newCX, newCY);
+	obs_source_video_render(source);
+
+	gs_set_linear_srgb(previous);
+	gs_projection_pop();
+	gs_viewport_pop();
+}
+
 /* ------------------------------------------------------------------------- */
 
 SwitcherVuMeter::SwitcherVuMeter(QWidget *parent) : QWidget(parent)
@@ -229,7 +279,7 @@ SwitcherInputTile::SwitcherInputTile(obs_source_t *source, QWidget *parent)
 	header->setObjectName("switcherInputHeader");
 
 	QHBoxLayout *headerLayout = new QHBoxLayout(header);
-	headerLayout->setContentsMargins(4, 2, 4, 2);
+	headerLayout->setContentsMargins(4, 1, 1, 1);
 	headerLayout->setSpacing(6);
 
 	categoryMark = new QFrame(header);
@@ -247,6 +297,19 @@ SwitcherInputTile::SwitcherInputTile(obs_source_t *source, QWidget *parent)
 	headerLayout->addWidget(categoryMark);
 	headerLayout->addWidget(numberLabel);
 	headerLayout->addWidget(nameLabel, 1);
+
+	QPushButton *closeButton = new QPushButton(QStringLiteral("✕"), header);
+	closeButton->setObjectName("switcherInputClose");
+	closeButton->setToolTip(QTStr("Switcher.Input.Close"));
+	closeButton->setFocusPolicy(Qt::NoFocus);
+	closeButton->setFixedSize(18, 16);
+	connect(closeButton, &QPushButton::clicked, this, [this]() {
+		OBSSource source = GetSource();
+		if (source) {
+			emit CloseRequested(source);
+		}
+	});
+	headerLayout->addWidget(closeButton);
 
 	/* Live thumbnail with the audio meter on its right */
 	QHBoxLayout *viewLayout = new QHBoxLayout();
@@ -289,29 +352,11 @@ SwitcherInputTile::SwitcherInputTile(obs_source_t *source, QWidget *parent)
 		};
 	};
 
+	/* Two rows of actions, laid out like a vMix input strip:
+	 * 1 2 3 4 GO Cut Loop Play / 5 6 7 8 Audio Projector Settings */
 	QHBoxLayout *firstRow = new QHBoxLayout();
 	firstRow->setContentsMargins(1, 1, 1, 0);
 	firstRow->setSpacing(1);
-
-	QPushButton *closeButton = makeButton(QTStr("Switcher.Input.Close"), "switcherInputClose");
-	QPushButton *quickPlayButton = makeButton(QTStr("Switcher.QuickPlay"), "switcherInputQuickPlay");
-	QPushButton *cutButton = makeButton(QTStr("Switcher.Input.Cut"), "switcherInputCut");
-	loopButton = makeButton(QTStr("Switcher.Input.Loop"), "switcherInputLoop");
-	playButton = makeButton(QString(), "switcherInputPlay");
-	playButton->setProperty("class", "switcher-input-button icon-media-play");
-	playButton->setFixedWidth(24);
-
-	connect(closeButton, &QPushButton::clicked, this, emitWithSource(&SwitcherInputTile::CloseRequested));
-	connect(quickPlayButton, &QPushButton::clicked, this, emitWithSource(&SwitcherInputTile::QuickPlayRequested));
-	connect(cutButton, &QPushButton::clicked, this, emitWithSource(&SwitcherInputTile::CutRequested));
-	connect(loopButton.data(), &QPushButton::clicked, this, &SwitcherInputTile::ToggleLoop);
-	connect(playButton.data(), &QPushButton::clicked, this, &SwitcherInputTile::TogglePlay);
-
-	firstRow->addWidget(closeButton);
-	firstRow->addWidget(quickPlayButton, 1);
-	firstRow->addWidget(cutButton);
-	firstRow->addWidget(loopButton);
-	firstRow->addWidget(playButton);
 
 	QHBoxLayout *secondRow = new QHBoxLayout();
 	secondRow->setContentsMargins(1, 1, 1, 1);
@@ -319,7 +364,7 @@ SwitcherInputTile::SwitcherInputTile(obs_source_t *source, QWidget *parent)
 
 	for (int i = 0; i < SWITCHER_OVERLAY_COUNT; i++) {
 		QPushButton *button = makeButton(QString::number(i + 1), "switcherInputOverlay");
-		button->setFixedWidth(22);
+		button->setFixedWidth(20);
 		button->setToolTip(QTStr("Switcher.Input.Overlay").arg(i + 1));
 		connect(button, &QPushButton::clicked, this, [this, i]() {
 			OBSSource source = GetSource();
@@ -328,8 +373,38 @@ SwitcherInputTile::SwitcherInputTile(obs_source_t *source, QWidget *parent)
 			}
 		});
 		overlayButtons[i] = button;
-		secondRow->addWidget(button);
+		(i < SWITCHER_OVERLAY_COUNT / 2 ? firstRow : secondRow)->addWidget(button);
 	}
+
+	QPushButton *goButton = makeButton(QTStr("Switcher.Input.Go"), "switcherInputGo");
+	goButton->setToolTip(QTStr("Switcher.Input.GoTT"));
+	connect(goButton, &QPushButton::clicked, this, [this]() {
+		OBSSource source = GetSource();
+		if (!source) {
+			return;
+		}
+
+		if (SwitcherGetGoAction(source) == SWITCHER_GO_CUT) {
+			emit CutRequested(source);
+		} else {
+			emit QuickPlayRequested(source);
+		}
+	});
+
+	QPushButton *cutButton = makeButton(QTStr("Switcher.Input.Cut"), "switcherInputCut");
+	loopButton = makeButton(QTStr("Switcher.Input.Loop"), "switcherInputLoop");
+	playButton = makeButton(QString(), "switcherInputPlay");
+	playButton->setProperty("class", "switcher-input-button icon-media-play");
+	playButton->setFixedWidth(22);
+
+	connect(cutButton, &QPushButton::clicked, this, emitWithSource(&SwitcherInputTile::CutRequested));
+	connect(loopButton.data(), &QPushButton::clicked, this, &SwitcherInputTile::ToggleLoop);
+	connect(playButton.data(), &QPushButton::clicked, this, &SwitcherInputTile::TogglePlay);
+
+	firstRow->addWidget(goButton, 1);
+	firstRow->addWidget(cutButton, 1);
+	firstRow->addWidget(loopButton);
+	firstRow->addWidget(playButton);
 
 	audioButton = makeButton(QTStr("Switcher.Input.Audio"), "switcherInputAudio");
 	audioButton->setToolTip(QTStr("Switcher.Input.AudioTT"));
@@ -338,18 +413,14 @@ SwitcherInputTile::SwitcherInputTile(obs_source_t *source, QWidget *parent)
 	QPushButton *projectorButton = makeButton(QString(), "switcherInputProjector");
 	projectorButton->setProperty("class", "switcher-input-button icon-switcher-projector");
 	projectorButton->setToolTip(QTStr("Projector.Open.Scene"));
-	projectorButton->setFixedWidth(24);
+	projectorButton->setFixedWidth(22);
 	connect(projectorButton, &QPushButton::clicked, this, emitWithSource(&SwitcherInputTile::ProjectorRequested));
 
 	QPushButton *settingsButton = makeButton(QString(), "switcherInputSettings");
 	settingsButton->setProperty("class", "switcher-input-button icon-gear");
-	settingsButton->setFixedWidth(24);
-	connect(settingsButton, &QPushButton::clicked, this, [this, settingsButton]() {
-		OBSSource source = GetSource();
-		if (source) {
-			emit MenuRequested(source, settingsButton->mapToGlobal(QPoint(0, settingsButton->height())));
-		}
-	});
+	settingsButton->setToolTip(QTStr("Switcher.Input.Settings"));
+	settingsButton->setFixedWidth(22);
+	connect(settingsButton, &QPushButton::clicked, this, emitWithSource(&SwitcherInputTile::SettingsRequested));
 
 	secondRow->addWidget(audioButton, 1);
 	secondRow->addWidget(projectorButton);
@@ -400,32 +471,9 @@ void SwitcherInputTile::DrawThumbnail(void *data, uint32_t cx, uint32_t cy)
 	SwitcherInputTile *tile = static_cast<SwitcherInputTile *>(data);
 
 	OBSSourceAutoRelease source = obs_weak_source_get_source(tile->weakSource);
-	if (!source) {
-		return;
+	if (source) {
+		SwitcherRenderSourceFit(source, cx, cy);
 	}
-
-	uint32_t sourceCX = std::max(obs_source_get_width(source), 1u);
-	uint32_t sourceCY = std::max(obs_source_get_height(source), 1u);
-
-	int x, y;
-	float scale;
-
-	GetScaleAndCenterPos(sourceCX, sourceCY, cx, cy, x, y, scale);
-
-	int newCX = int(scale * float(sourceCX));
-	int newCY = int(scale * float(sourceCY));
-
-	gs_viewport_push();
-	gs_projection_push();
-	const bool previous = gs_set_linear_srgb(true);
-
-	gs_ortho(0.0f, float(sourceCX), 0.0f, float(sourceCY), -100.0f, 100.0f);
-	gs_set_viewport(x, y, newCX, newCY);
-	obs_source_video_render(source);
-
-	gs_set_linear_srgb(previous);
-	gs_projection_pop();
-	gs_viewport_pop();
 }
 
 void SwitcherInputTile::VolmeterUpdated(void *data, const float[MAX_AUDIO_CHANNELS],
@@ -624,8 +672,22 @@ bool SwitcherInputTile::eventFilter(QObject *obj, QEvent *event)
 		QMouseEvent *mouseEvent = static_cast<QMouseEvent *>(event);
 		if (mouseEvent->button() == Qt::LeftButton) {
 			OBSSource source = GetSource();
-			if (source) {
+			if (!source) {
+				return true;
+			}
+
+			switch (SwitcherGetClickAction(source)) {
+			case SWITCHER_CLICK_CUT:
+				emit CutRequested(source);
+				break;
+			case SWITCHER_CLICK_QUICKPLAY:
+				emit QuickPlayRequested(source);
+				break;
+			case SWITCHER_CLICK_NOTHING:
+				break;
+			default:
 				emit PreviewRequested(source);
+				break;
 			}
 			return true;
 		}
@@ -763,6 +825,7 @@ void SwitcherInputGrid::SetScenes(const std::vector<OBSSource> &scenes)
 		connect(tile, &SwitcherInputTile::CloseRequested, this, &SwitcherInputGrid::CloseRequested);
 		connect(tile, &SwitcherInputTile::OverlayRequested, this, &SwitcherInputGrid::OverlayRequested);
 		connect(tile, &SwitcherInputTile::ProjectorRequested, this, &SwitcherInputGrid::ProjectorRequested);
+		connect(tile, &SwitcherInputTile::SettingsRequested, this, &SwitcherInputGrid::SettingsRequested);
 		connect(tile, &SwitcherInputTile::MenuRequested, this, &SwitcherInputGrid::MenuRequested);
 		newTiles.push_back(tile);
 	}

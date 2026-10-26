@@ -1484,8 +1484,8 @@ private:
 	QPointer<QWidget> switcherMixerContainer;
 	QPointer<QWidget> switcherMixer;
 	/* One fade transition per overlay channel, and what each one shows */
-	OBSSource switcherOverlayTransitions[4];
-	OBSWeakSource switcherOverlayScenes[4];
+	OBSSource switcherOverlayTransitions[8];
+	OBSWeakSource switcherOverlayScenes[8];
 	QByteArray switcherPrevDockState;
 	qint64 switcherOnAirStart = 0;
 
@@ -1502,6 +1502,7 @@ private:
 	void RefreshSwitcherInputs();
 	void UpdateSwitcherInputStates();
 	void ToggleSwitcherOverlay(OBSSource source, int index);
+	void OpenSwitcherInputSelect();
 	void ClearSwitcherOverlays();
 	void CreateSwitcherBusMeters();
 	void DestroySwitcherBusMeters();

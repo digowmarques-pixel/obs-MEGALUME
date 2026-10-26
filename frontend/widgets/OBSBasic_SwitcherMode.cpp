@@ -28,6 +28,7 @@
 #include <components/SwitcherBusMeters.hpp>
 #include <components/SwitcherInputGrid.hpp>
 #include <dialogs/NameDialog.hpp>
+#include <dialogs/SwitcherInputSelect.hpp>
 
 #include <qt-wrappers.hpp>
 
@@ -226,13 +227,17 @@ void OBSBasic::CreateSwitcherBar()
 	QToolButton *addInput = new QToolButton(barContents);
 	addInput->setObjectName("switcherAddInput");
 	addInput->setText(QTStr("Switcher.AddInput"));
-	addInput->setPopupMode(QToolButton::InstantPopup);
+	addInput->setPopupMode(QToolButton::MenuButtonPopup);
 	addInput->setToolButtonStyle(Qt::ToolButtonTextOnly);
 
+	/* Clicking opens Input Select, the arrow keeps the quick options */
 	QMenu *addInputMenu = new QMenu(addInput);
+	addInputMenu->addAction(QTStr("Switcher.InputSelect") + "...", this, &OBSBasic::OpenSwitcherInputSelect);
+	addInputMenu->addSeparator();
 	addInputMenu->addAction(QTStr("Switcher.AddInput.Scene"), this, &OBSBasic::on_actionAddScene_triggered);
 	addInputMenu->addAction(QTStr("Switcher.AddInput.Source"), this, &OBSBasic::AddSourceDialog);
 	addInput->setMenu(addInputMenu);
+	connect(addInput, &QToolButton::clicked, this, &OBSBasic::OpenSwitcherInputSelect);
 
 	barLayout->addWidget(addInput);
 
@@ -646,4 +651,14 @@ void OBSBasic::DestroySwitcherBusMeters()
 
 	delete switcherMixerContainer;
 	switcherMixer = nullptr;
+}
+
+void OBSBasic::OpenSwitcherInputSelect()
+{
+	SwitcherInputSelect *dialog = new SwitcherInputSelect(this);
+	connect(dialog, &SwitcherInputSelect::InputCreated, this, [this](OBSSource scene) {
+		/* New inputs land in Preview, ready to take */
+		SetCurrentScene(scene);
+	});
+	dialog->show();
 }

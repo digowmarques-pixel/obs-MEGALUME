@@ -2176,6 +2176,22 @@ OBSBasicFilters #widget_2 QPushButton {
     background: var(--switcher_program);
 }
 
+#switcherInputClose {
+    background: transparent;
+    border: none;
+    color: var(--switcher_title_text);
+    font-weight: bold;
+    padding: 0px;
+    margin: 0px;
+    min-width: 0px;
+    height: 16px;
+    max-height: 16px;
+}
+
+#switcherInputClose:hover {
+    background: var(--red3);
+}
+
 #switcherInputNumber {
     font-weight: bold;
     color: var(--switcher_title_text);
@@ -2266,6 +2282,27 @@ OBSBasicFilters #widget_2 QPushButton {
 #switcherBusTrack {
     font-size: var(--font_xsmall);
     color: var(--text_muted);
+}
+
+/* Switcher dialogs: dark navigation list with a green selection */
+
+#switcherInputTypes,
+#switcherSettingsNav {
+    background: var(--grey8);
+    border: none;
+    padding: 0px;
+}
+
+#switcherInputTypes::item,
+#switcherSettingsNav::item {
+    padding: 6px 8px;
+    border-radius: 0px;
+}
+
+#switcherInputTypes::item:selected,
+#switcherSettingsNav::item:selected {
+    background: var(--switcher_program);
+    color: var(--switcher_title_text);
 }
 
 .icon-switcher-projector {
