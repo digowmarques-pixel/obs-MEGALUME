@@ -9,7 +9,7 @@ on:
       - 'megalume/**'
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 jobs:
   windows-build:
     name: Windows x64 🪟
@@ -23,26 +23,55 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
-      - name: Short Commit Hash 🔎
-        id: commit
+      - name: Set Version 🏷️
+        shell: bash
         run: |
-          "hash=$("${{ github.sha }}".Substring(0, 9))" >> $env:GITHUB_OUTPUT
+          # The fork carries no upstream tags, and the build takes its version from git describe
+          git tag -f 33.0.0-megalume
+          echo "hash=${GITHUB_SHA::9}" >> "$GITHUB_OUTPUT"
+        id: version
 
       - name: Build OBS Studio 🧱
-        uses: ./.github/actions/build-obs
-        with:
-          target: x64
-          config: RelWithDebInfo
+        run: |
+          .github/scripts/Build-Windows.ps1 -Target x64 -Configuration RelWithDebInfo *>&1 |
+            Tee-Object -FilePath "${{ runner.temp }}/build.log"
+          if ( $LASTEXITCODE -ne 0 ) { throw "Build failed with exit code $LASTEXITCODE" }
 
       - name: Package OBS Studio 📀
-        uses: ./.github/actions/package-obs
-        with:
-          target: x64
-          config: RelWithDebInfo
-          package: true
+        run: |
+          .github/scripts/Package-Windows.ps1 -Target x64 -Configuration RelWithDebInfo *>&1 |
+            Tee-Object -FilePath "${{ runner.temp }}/build.log" -Append
+          if ( $LASTEXITCODE -ne 0 ) { throw "Packaging failed with exit code $LASTEXITCODE" }
+
+      - name: Report Failure 🚨
+        if: failure()
+        run: |
+          # Surface the end of the log as an annotation, readable from the checks API
+          $log = "${{ runner.temp }}/build.log"
+          if ( Test-Path $log ) {
+            $tail = (Get-Content $log -Tail 80) -join '%0A'
+            Write-Output "::error title=Build log::$tail"
+          } else {
+            Write-Output "::error title=Build log::No build log, the failure happened before the build step"
+          }
 
       - name: Upload Artifacts 📡
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: obs-megalume-windows-x64-${{ steps.commit.outputs.hash }}
+          name: obs-megalume-windows-x64-${{ steps.version.outputs.hash }}
           path: ${{ github.workspace }}/build_x64/obs-studio-*-windows-x64.zip
+
+      - name: Publish Release 🚀
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # One rolling pre-release that always holds the latest build of this branch
+          tag="megalume-${GITHUB_REF_NAME//\//-}"
+          zip=$(ls build_x64/obs-studio-*-windows-x64.zip | head -n 1)
+          cp "$zip" OBS-MEGALUME-windows-x64.zip
+          gh release delete "$tag" --yes --cleanup-tag || true
+          gh release create "$tag" OBS-MEGALUME-windows-x64.zip \
+            --target "$GITHUB_SHA" --prerelease \
+            --title "OBS MEGALUME (${GITHUB_REF_NAME}, ${GITHUB_SHA::9})" \
+            --notes "Windows x64 build of ${GITHUB_REF_NAME} at ${GITHUB_SHA}. Extract the zip and run bin\\64bit\\obs64.exe, then turn on View > Switcher Mode."
