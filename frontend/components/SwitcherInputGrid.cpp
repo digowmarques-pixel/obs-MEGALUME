@@ -26,10 +26,10 @@
 
 #include "moc_SwitcherInputGrid.cpp"
 
-#define TILE_WIDTH 204
+#define TILE_WIDTH 212
 #define VU_WIDTH 10
 #define THUMBNAIL_WIDTH (TILE_WIDTH - VU_WIDTH)
-#define THUMBNAIL_HEIGHT 109
+#define THUMBNAIL_HEIGHT 113
 
 #define METER_FLOOR_DB -60.0f
 #define METER_DECAY_DB 1.2f
@@ -136,7 +136,6 @@ void SwitcherRenderSourceFit(obs_source_t *source, uint32_t cx, uint32_t cy)
 SwitcherVuMeter::SwitcherVuMeter(QWidget *parent) : QWidget(parent)
 {
 	setObjectName("switcherInputMeter");
-	setAttribute(Qt::WA_OpaquePaintEvent);
 }
 
 void SwitcherVuMeter::SetLevels(float left, float right)
@@ -153,10 +152,14 @@ void SwitcherVuMeter::SetLevels(float left, float right)
 void SwitcherVuMeter::paintEvent(QPaintEvent *)
 {
 	QPainter painter(this);
-	painter.fillRect(rect(), QColor(10, 10, 10));
+	painter.setRenderHint(QPainter::Antialiasing);
+	painter.fillRect(rect(), palette().window());
+	painter.setPen(Qt::NoPen);
+	painter.setBrush(QColor(8, 9, 12));
+	painter.drawRoundedRect(QRectF(rect()).adjusted(1, 0, 0, 0), 3, 3);
 
-	int barWidth = (width() - 3) / 2;
-	int h = height() - 2;
+	int barWidth = (width() - 4) / 2;
+	int h = height() - 4;
 
 	QLinearGradient gradient(0, h, 0, 0);
 	gradient.setColorAt(0.0, QColor(40, 190, 70));
@@ -167,9 +170,10 @@ void SwitcherVuMeter::paintEvent(QPaintEvent *)
 	for (int i = 0; i < 2; i++) {
 		float level = std::clamp(levels[i], METER_FLOOR_DB, 0.0f);
 		int barHeight = int(float(h) * (level - METER_FLOOR_DB) / -METER_FLOOR_DB);
-		int x = 1 + i * (barWidth + 1);
+		int x = 2 + i * (barWidth + 1);
 
-		painter.fillRect(QRect(x, 1 + h - barHeight, barWidth, barHeight), gradient);
+		painter.setBrush(gradient);
+		painter.drawRoundedRect(QRectF(x, 2 + h - barHeight, barWidth, barHeight), 1.5, 1.5);
 	}
 }
 
@@ -284,7 +288,7 @@ SwitcherInputTile::SwitcherInputTile(obs_source_t *source, QWidget *parent)
 
 	categoryMark = new QFrame(header);
 	categoryMark->setObjectName("switcherInputCategory");
-	categoryMark->setFixedSize(8, 12);
+	categoryMark->setFixedSize(9, 9);
 	categoryMark->setVisible(false);
 
 	numberLabel = new QLabel(header);
@@ -355,12 +359,12 @@ SwitcherInputTile::SwitcherInputTile(obs_source_t *source, QWidget *parent)
 	/* Two rows of actions, laid out like a vMix input strip:
 	 * 1 2 3 4 GO Cut Loop Play / 5 6 7 8 Audio Projector Settings */
 	QHBoxLayout *firstRow = new QHBoxLayout();
-	firstRow->setContentsMargins(1, 1, 1, 0);
-	firstRow->setSpacing(1);
+	firstRow->setContentsMargins(4, 4, 4, 0);
+	firstRow->setSpacing(2);
 
 	QHBoxLayout *secondRow = new QHBoxLayout();
-	secondRow->setContentsMargins(1, 1, 1, 1);
-	secondRow->setSpacing(1);
+	secondRow->setContentsMargins(4, 2, 4, 4);
+	secondRow->setSpacing(2);
 
 	for (int i = 0; i < SWITCHER_OVERLAY_COUNT; i++) {
 		QPushButton *button = makeButton(QString::number(i + 1), "switcherInputOverlay");
@@ -738,7 +742,9 @@ void SwitcherInputTile::UpdateCategory()
 	QColor color = SwitcherCategoryColor(category);
 	categoryMark->setVisible(color.isValid());
 	if (color.isValid()) {
-		categoryMark->setStyleSheet(QString("background: %1; border: 1px solid white;").arg(color.name()));
+		categoryMark->setStyleSheet(
+			QString("background: %1; border: 1px solid rgba(255,255,255,0.85); border-radius: 4px;")
+				.arg(color.name()));
 		categoryMark->setToolTip(SwitcherCategoryName(category));
 	}
 }
@@ -789,7 +795,7 @@ SwitcherInputGrid::SwitcherInputGrid(QWidget *parent) : QScrollArea(parent)
 
 	contents = new QWidget();
 	contents->setObjectName("switcherInputGridContents");
-	flowLayout = new FlowLayout(contents, 4, 4, 4);
+	flowLayout = new FlowLayout(contents, 8, 8, 8);
 
 	setWidget(contents);
 }
@@ -906,8 +912,8 @@ SwitcherInputTabs::SwitcherInputTabs(QWidget *parent) : QFrame(parent)
 	setObjectName("switcherInputTabs");
 
 	QHBoxLayout *layout = new QHBoxLayout(this);
-	layout->setContentsMargins(4, 2, 4, 2);
-	layout->setSpacing(2);
+	layout->setContentsMargins(8, 6, 8, 2);
+	layout->setSpacing(6);
 
 	group = new QButtonGroup(this);
 	group->setExclusive(true);
@@ -921,9 +927,12 @@ SwitcherInputTabs::SwitcherInputTabs(QWidget *parent) : QFrame(parent)
 		QColor color = SwitcherCategoryColor(i);
 		if (color.isValid()) {
 			/* Category colors are data, not theme, so they are set here */
-			button->setStyleSheet(QString("QPushButton { background: %1; border-color: %1; color: white; }"
-						      "QPushButton:checked { border: 2px solid white; }")
-						      .arg(color.name()));
+			button->setStyleSheet(
+				QString("QPushButton { background: %1; border: 1px solid %1; color: white;"
+					" border-radius: 11px; padding: 0px 12px; }"
+					"QPushButton:hover { border-color: rgba(255,255,255,0.5); }"
+					"QPushButton:checked { border: 2px solid white; }")
+					.arg(color.name()));
 			button->setContextMenuPolicy(Qt::CustomContextMenu);
 			connect(button, &QPushButton::customContextMenuRequested, this,
 				[this, i]() { RenameCategory(i); });

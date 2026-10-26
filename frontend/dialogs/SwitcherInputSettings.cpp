@@ -231,7 +231,8 @@ QWidget *SwitcherInputSettings::CreateGeneralPage()
 		swatch->setToolTip(i == 0 ? QTStr("Switcher.Category.None") : SwitcherCategoryName(i));
 
 		QColor color = i == 0 ? QColor(45, 45, 45) : SwitcherCategoryColor(i);
-		swatch->setStyleSheet(QString("QPushButton { background: %1; border: 1px solid #777; }"
+		swatch->setStyleSheet(QString("QPushButton { background: %1; border: 1px solid rgba(255,255,255,0.25);"
+					      " border-radius: 13px; }"
 					      "QPushButton:checked { border: 3px solid white; }")
 					      .arg(color.name()));
 		swatch->setChecked(i == current);

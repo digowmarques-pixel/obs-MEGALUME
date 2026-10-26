@@ -289,14 +289,22 @@
     /* Switcher Mode */
     --switcher_preview: #E07B10;
     --switcher_program: #2E9E3E;
-    --switcher_title_text: var(--white1);
-    --switcher_clock_bg: #000000;
-    --switcher_clock_border: var(--white1);
     --switcher_onair: #E33B57;
-    --switcher_bar_bg: var(--bg_base);
     --switcher_input: #2A5BA8;
+    --switcher_accent: var(--primary);
+    --switcher_title_text: var(--white1);
+    --switcher_muted: var(--text_muted);
+    --switcher_panel_bg: var(--bg_base);
+    --switcher_bar_bg: var(--bg_base);
     --switcher_tile_bg: var(--grey6);
     --switcher_tile_border: var(--grey4);
+    --switcher_button_bg: var(--button_bg);
+    --switcher_button_hover: var(--button_bg_hover);
+    --switcher_clock_bg: #000000;
+    --switcher_clock_border: var(--grey4);
+    --switcher_radius: 4px;
+    --switcher_radius_small: 3px;
+    --switcher_radius_large: 6px;
 }
 
 /* --------------------- */
@@ -2065,12 +2073,16 @@ OBSBasicFilters #widget_2 QPushButton {
 
 /* Switcher Mode */
 
+/* Preview and Program title bars sit on top of their displays like tabs */
 .label-switcher-preview,
 .label-switcher-program {
     font-size: var(--font_base);
+    font-weight: bold;
     color: var(--switcher_title_text);
-    padding: 3px 8px;
-    margin-bottom: 0px;
+    padding: 4px 10px;
+    margin: 0px;
+    border-top-left-radius: var(--switcher_radius_large);
+    border-top-right-radius: var(--switcher_radius_large);
 }
 
 .label-switcher-preview {
@@ -2081,24 +2093,37 @@ OBSBasicFilters #widget_2 QPushButton {
     background: var(--switcher_program);
 }
 
+/* Transition column */
+
 #switcherTransitionColumn QPushButton {
-    height: 28px;
-    max-height: 28px;
+    height: 30px;
+    max-height: 30px;
+    border-radius: var(--switcher_radius);
 }
 
 #switcherTransitionColumn .switcher-quickplay {
     font-weight: bold;
+    background: var(--switcher_accent);
+    border-color: var(--switcher_accent);
+    color: var(--switcher_title_text);
+}
+
+#switcherTransitionColumn .switcher-quickplay:hover {
+    background: var(--primary_light);
+    border-color: var(--primary_light);
 }
 
 #switcherTransitionColumn #quickTransitionsLabel {
-    color: var(--text_muted);
+    color: var(--switcher_muted);
     font-size: var(--font_small);
 }
 
 #switcherClockFrame {
     background: var(--switcher_clock_bg);
-    border: 2px solid var(--switcher_clock_border);
-    margin-top: 8px;
+    border: 1px solid var(--switcher_clock_border);
+    border-radius: var(--switcher_radius_large);
+    margin-top: 10px;
+    padding: 4px;
 }
 
 #switcherOnAirTime {
@@ -2113,15 +2138,17 @@ OBSBasicFilters #widget_2 QPushButton {
 
 #switcherClock {
     font-size: var(--font_large);
-    color: var(--text_light);
+    color: var(--switcher_muted);
 }
+
+/* Bottom bar */
 
 #switcherBottomBar {
     background: var(--switcher_bar_bg);
     border: none;
     border-top: 1px solid var(--border_color);
-    padding: 2px 4px;
-    spacing: 4px;
+    padding: 4px 6px;
+    spacing: 6px;
 }
 
 #switcherBottomBar #controlsFrame {
@@ -2129,31 +2156,48 @@ OBSBasicFilters #widget_2 QPushButton {
 }
 
 #switcherBottomBar #controlsFrame QPushButton {
-    margin: 0px 2px;
+    margin: 0px 3px;
+    border-radius: var(--switcher_radius_large);
 }
 
-#switcherAddInput {
-    background-color: var(--button_bg);
+#switcherAddInput,
+#switcherDestinations {
+    background-color: var(--switcher_button_bg);
     color: var(--text);
-    border: 1px solid var(--button_border);
-    border-radius: var(--border_radius);
+    border: 1px solid var(--switcher_button_bg);
+    border-radius: var(--switcher_radius_large);
     padding: var(--padding_large) var(--padding_wide);
 }
 
-#switcherAddInput:hover {
-    background-color: var(--button_bg_hover);
+#switcherAddInput:hover,
+#switcherDestinations:hover {
+    background-color: var(--switcher_button_hover);
+    border-color: var(--switcher_button_hover);
 }
 
-/* Switcher inputs */
+#switcherAddInput {
+    background-color: var(--switcher_accent);
+    border-color: var(--switcher_accent);
+    color: var(--switcher_title_text);
+    font-weight: bold;
+}
+
+#switcherAddInput:hover {
+    background-color: var(--primary_light);
+    border-color: var(--primary_light);
+}
+
+/* Inputs */
 
 #switcherInputGrid,
 #switcherInputGridContents {
-    background: var(--bg_base);
+    background: var(--switcher_panel_bg);
 }
 
 #switcherInputTile {
     background: var(--switcher_tile_bg);
     border: 1px solid var(--switcher_tile_border);
+    border-radius: var(--switcher_radius_large);
 }
 
 #switcherInputTile.state-preview {
@@ -2166,6 +2210,8 @@ OBSBasicFilters #widget_2 QPushButton {
 
 #switcherInputHeader {
     background: var(--switcher_input);
+    border-top-left-radius: var(--switcher_radius);
+    border-top-right-radius: var(--switcher_radius);
 }
 
 #switcherInputHeader.state-preview {
@@ -2176,9 +2222,19 @@ OBSBasicFilters #widget_2 QPushButton {
     background: var(--switcher_program);
 }
 
+#switcherInputNumber {
+    font-weight: bold;
+    color: var(--switcher_title_text);
+}
+
+#switcherInputName {
+    color: var(--switcher_title_text);
+}
+
 #switcherInputClose {
     background: transparent;
     border: none;
+    border-radius: var(--switcher_radius_small);
     color: var(--switcher_title_text);
     font-weight: bold;
     padding: 0px;
@@ -2192,29 +2248,25 @@ OBSBasicFilters #widget_2 QPushButton {
     background: var(--red3);
 }
 
-#switcherInputNumber {
-    font-weight: bold;
-    color: var(--switcher_title_text);
-}
-
-#switcherInputName {
-    color: var(--switcher_title_text);
-}
-
 #switcherInputTile .switcher-input-button {
+    background: var(--switcher_button_bg);
+    border: none;
+    border-radius: var(--switcher_radius_small);
     font-size: var(--font_small);
     padding: 0px 3px;
     margin: 0px;
     height: 20px;
     max-height: 20px;
     min-width: 0px;
-    border-radius: 0px;
     qproperty-iconSize: 12px;
+}
+
+#switcherInputTile .switcher-input-button:hover {
+    background: var(--switcher_button_hover);
 }
 
 #switcherInputTile .switcher-input-button.state-active {
     background: var(--switcher_program);
-    border-color: var(--switcher_program);
     color: var(--switcher_title_text);
 }
 
@@ -2223,24 +2275,24 @@ OBSBasicFilters #widget_2 QPushButton {
 }
 
 #switcherInputTabs {
-    background: var(--bg_base);
+    background: var(--switcher_panel_bg);
 }
 
 #switcherInputTabs .switcher-tab {
     font-size: var(--font_small);
     font-weight: bold;
-    padding: 0px 8px;
-    height: 20px;
-    max-height: 20px;
-    border-radius: 0px;
+    padding: 0px 12px;
+    height: 22px;
+    max-height: 22px;
+    border-radius: 11px;
 }
 
 #switcherInputTabs .switcher-tab:checked {
-    background: var(--primary);
-    border-color: var(--primary_light);
+    background: var(--switcher_accent);
+    border-color: var(--switcher_accent);
 }
 
-/* Switcher audio buses */
+/* Audio buses */
 
 .btn-bus {
     font-size: var(--font_xsmall);
@@ -2250,7 +2302,7 @@ OBSBasicFilters #widget_2 QPushButton {
     max-width: 24px;
     height: 18px;
     max-height: 18px;
-    border-radius: 0px;
+    border-radius: var(--switcher_radius_small);
 }
 
 .btn-bus:checked {
@@ -2260,7 +2312,7 @@ OBSBasicFilters #widget_2 QPushButton {
 }
 
 #switcherBusMeters {
-    background: var(--bg_base);
+    background: var(--switcher_panel_bg);
     border-right: 1px solid var(--border_color);
 }
 
@@ -2268,7 +2320,8 @@ OBSBasicFilters #widget_2 QPushButton {
 #switcherBusName {
     font-weight: bold;
     color: var(--switcher_title_text);
-    padding: 1px 4px;
+    padding: 2px 6px;
+    border-radius: var(--switcher_radius);
 }
 
 #switcherBusMasterName {
@@ -2276,33 +2329,57 @@ OBSBasicFilters #widget_2 QPushButton {
 }
 
 #switcherBusName {
-    background: var(--primary);
+    background: var(--switcher_accent);
 }
 
 #switcherBusTrack {
     font-size: var(--font_xsmall);
-    color: var(--text_muted);
+    color: var(--switcher_muted);
 }
 
-/* Switcher dialogs: dark navigation list with a green selection */
+/* Switcher dialogs: navigation list on the left */
 
 #switcherInputTypes,
 #switcherSettingsNav {
     background: var(--grey8);
     border: none;
-    padding: 0px;
+    padding: 6px;
 }
 
 #switcherInputTypes::item,
 #switcherSettingsNav::item {
-    padding: 6px 8px;
-    border-radius: 0px;
+    padding: 7px 10px;
+    margin: 1px 0px;
+    border-radius: var(--switcher_radius);
+}
+
+#switcherInputTypes::item:hover,
+#switcherSettingsNav::item:hover {
+    background: var(--switcher_button_bg);
 }
 
 #switcherInputTypes::item:selected,
 #switcherSettingsNav::item:selected {
-    background: var(--switcher_program);
+    background: var(--switcher_accent);
     color: var(--switcher_title_text);
+}
+
+#switcherLayoutPresets {
+    border-radius: var(--switcher_radius_large);
+}
+
+#switcherStreamHeader {
+    color: var(--switcher_muted);
+    font-weight: bold;
+}
+
+#switcherStreamNumber,
+#switcherLayerNumber {
+    font-weight: bold;
+}
+
+#switcherStreamNote {
+    color: var(--switcher_muted);
 }
 
 .icon-switcher-projector {

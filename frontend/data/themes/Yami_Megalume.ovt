@@ -1,8 +1,9 @@
 /* ------------------------------------------------------------------------- *
  *                                                                           *
- * Megalume: a broadcast switcher style variant of Yami, made to go with     *
- * Switcher Mode (View > Switcher Mode). Near-black panels, neutral grey     *
- * buttons, blue selection and orange/green Preview and Program bars.        *
+ * Megalume: an elegant broadcast switcher variant of Yami, made to go with  *
+ * Switcher Mode (View > Switcher Mode). Deep graphite panels with a cool    *
+ * tint, rounded cards and controls, quiet borders, a blue accent and soft   *
+ * amber/emerald Preview and Program colors.                                 *
  *                                                                           *
  * ------------------------------------------------------------------------- */
 
@@ -15,46 +16,151 @@
 }
 
 @OBSThemeVars {
-    --grey1: rgb(92,92,92);
-    --grey2: rgb(78,78,78);
-    --grey3: rgb(66,66,66);
-    --grey4: rgb(54,54,54);
-    --grey5: rgb(44,44,44);
-    --grey6: rgb(34,34,34);
-    --grey7: rgb(26,26,26);
-    --grey8: rgb(14,14,14);
+    /* Graphite scale, lightest to darkest */
+    --grey1: #4A5162;
+    --grey2: #3B4150;
+    --grey3: #323743;
+    --grey4: #2A2E38;
+    --grey5: #22262F;
+    --grey6: #1B1E25;
+    --grey7: #15171D;
+    --grey8: #0E1014;
 
     --bg_window: var(--grey7);
     --bg_base: var(--grey6);
-    --bg_preview: rgb(0,0,0);
+    --bg_preview: #000000;
 
-    --primary: rgb(38,88,160);
-    --primary_light: rgb(52,110,192);
-    --primary_lighter: rgb(92,144,220);
-    --primary_dark: rgb(30,70,128);
-    --primary_darker: rgb(22,52,96);
+    --primary: #3B6FE0;
+    --primary_light: #5687F0;
+    --primary_lighter: #7BA2F5;
+    --primary_dark: #2D58B8;
+    --primary_darker: #22438C;
 
-    --border_radius: 2px;
-    --border_radius_small: 1px;
-    --border_radius_large: 3px;
+    --border_color: var(--grey4);
 
-    --switcher_preview: rgb(232,128,20);
-    --switcher_program: rgb(40,160,60);
+    --border_radius: 6px;
+    --border_radius_small: 4px;
+    --border_radius_large: 8px;
+
+    --input_bg: var(--grey5);
+    --input_bg_hover: var(--grey4);
+    --input_bg_focus: var(--grey8);
+    --input_border: var(--grey4);
+    --input_border_hover: var(--grey2);
+    --input_border_focus: var(--primary);
+
+    --button_bg: var(--grey5);
+    --button_bg_hover: var(--grey3);
+    --button_bg_down: var(--grey8);
+    --button_bg_disabled: var(--grey6);
+    --button_border: var(--grey4);
+    --button_border_hover: var(--grey2);
+    --button_border_focus: var(--primary);
+
+    --scrollbar_handle: var(--grey3);
+    --scrollbar_hover: var(--grey2);
+
+    /* Switcher */
+    --switcher_preview: #E8892B;
+    --switcher_program: #22A45D;
+    --switcher_onair: #F0465C;
+    --switcher_input: #2C3446;
+    --switcher_accent: var(--primary);
+    --switcher_panel_bg: var(--grey7);
+    --switcher_bar_bg: var(--grey8);
+    --switcher_tile_bg: var(--grey6);
+    --switcher_tile_border: var(--grey4);
+    --switcher_button_bg: var(--grey5);
+    --switcher_button_hover: var(--grey3);
+    --switcher_clock_bg: var(--grey8);
+    --switcher_clock_border: var(--grey3);
+    --switcher_radius: 6px;
+    --switcher_radius_small: 4px;
+    --switcher_radius_large: 9px;
+}
+
+/* Docks read as quiet cards with a light title instead of a heavy bar */
+
+QDockWidget {
+    font-weight: normal;
 }
 
 QDockWidget::title {
-    background-color: var(--grey5);
+    background-color: var(--grey7);
+    color: var(--text_muted);
     text-align: left;
-    padding-left: 6px;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--grey5);
 }
 
-/* Output buttons in the bottom bar turn red while live, like a tally */
+OBSDock > QWidget {
+    background: var(--grey7);
+    border: none;
+}
+
+QMainWindow::separator {
+    background: var(--grey8);
+    width: 4px;
+    height: 4px;
+}
+
+QMenuBar {
+    background: var(--grey8);
+}
+
+QMenu {
+    border-radius: var(--border_radius_large);
+    padding: 4px;
+}
+
+QMenu::item {
+    border-radius: var(--border_radius_small);
+    padding: 6px 22px 6px 12px;
+}
+
+QToolTip {
+    border-radius: var(--border_radius_small);
+    padding: 4px 8px;
+}
+
+QStatusBar {
+    background: var(--grey8);
+    color: var(--text_muted);
+}
+
+QPushButton,
+QToolButton {
+    border-radius: var(--border_radius);
+}
+
+QLineEdit,
+QComboBox,
+QSpinBox,
+QDoubleSpinBox,
+QTextEdit,
+QPlainTextEdit {
+    border-radius: var(--border_radius);
+}
+
+QScrollBar::handle {
+    border-radius: 4px;
+}
+
+QListWidget,
+QListView,
+QTreeView {
+    border-radius: var(--border_radius_large);
+}
+
+/* Output buttons light up red while live, like a tally */
 #switcherBottomBar #streamButton:!hover:!pressed.state-active,
 #switcherBottomBar #recordButton:!hover:!pressed.state-active {
-    background: rgb(192,28,55);
+    background: #C8233F;
+    border-color: #C8233F;
 }
 
 #switcherBottomBar #streamButton:hover:!pressed.state-active,
 #switcherBottomBar #recordButton:hover:!pressed.state-active {
-    background: rgb(225,59,87);
+    background: var(--switcher_onair);
+    border-color: var(--switcher_onair);
 }
