@@ -83,6 +83,8 @@ target_sources(
     components/SourceTreeModel.hpp
     components/SwitcherBusMeters.cpp
     components/SwitcherBusMeters.hpp
+    components/SwitcherAutomation.cpp
+    components/SwitcherAutomation.hpp
     components/SwitcherBusOutputs.cpp
     components/SwitcherBusOutputs.hpp
     components/SwitcherInputGrid.cpp

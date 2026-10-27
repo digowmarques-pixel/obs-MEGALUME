@@ -1501,6 +1501,11 @@ private:
 	QPointer<QLabel> switcherAlert;
 	qint64 switcherQuietSince = 0;
 	OBSSignal switcherSourceCreateSignal;
+	/* Lists and triggers: last media state of each input, and the input
+	 * that was on air before the current one */
+	std::unordered_map<std::string, int> switcherMediaStates;
+	OBSWeakSource switcherLastProgram;
+	OBSWeakSource switcherPreviousProgram;
 	static void SwitcherSourceCreated(void *data, calldata_t *calldata);
 	bool switcherInputsRefreshQueued = false;
 	QPointer<QWidget> switcherMixerContainer;
@@ -1534,6 +1539,8 @@ private:
 	void OpenSwitcherMultiCorder();
 	void OpenSwitcherOutputs();
 	void UpdateSwitcherAlerts();
+	void SwitcherAutomationTick();
+	void SwitcherRunEndTrigger(obs_source_t *scene);
 	void RemoveSwitcherInput(OBSSource scene);
 	void ClearSwitcherOverlays();
 	void CreateSwitcherBusMeters();

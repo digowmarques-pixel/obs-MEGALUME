@@ -45,6 +45,7 @@ target_sources(
     dialogs/OBSWhatsNew.hpp
     dialogs/SwitcherInputSelect.cpp
     dialogs/SwitcherInputSelect.hpp
+    dialogs/SwitcherInputPages.cpp
     dialogs/SwitcherInputSettings.cpp
     dialogs/SwitcherInputSettings.hpp
     dialogs/SwitcherMultiCorder.cpp

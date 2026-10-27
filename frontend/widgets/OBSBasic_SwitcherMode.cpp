@@ -34,6 +34,7 @@
 #include <dialogs/SwitcherMultiCorder.hpp>
 #include <dialogs/SwitcherOutputs.hpp>
 #include <components/SwitcherBusOutputs.hpp>
+#include <components/SwitcherAutomation.hpp>
 #include <dialogs/SwitcherSettings.hpp>
 #include <dialogs/SwitcherStreamSettings.hpp>
 #include <utility/BasicOutputHandler.hpp>
@@ -160,6 +161,11 @@ void OBSBasic::InitSwitcherMode()
 
 	/* Buses can play on audio devices of their own */
 	switcherBusOutputs = new SwitcherBusOutputs(this);
+
+	/* Video lists and end-of-video triggers */
+	QTimer *automationTimer = new QTimer(this);
+	connect(automationTimer, &QTimer::timeout, this, &OBSBasic::SwitcherAutomationTick);
+	automationTimer->start(40);
 
 	/* Extra stream destinations share the main stream's encoders */
 	switcherMultistream = new SwitcherMultistream(this, [this]() -> OBSOutputAutoRelease {
@@ -923,6 +929,17 @@ void OBSBasic::OpenSwitcherInputSelect()
 	connect(dialog, &SwitcherInputSelect::InputCreated, this, [this](OBSSource scene) {
 		/* New inputs land in Preview, ready to take */
 		SetCurrentScene(scene);
+
+		/* A new list opens on its List page, ready for more videos */
+		OBSDataAutoRelease settings = obs_source_get_private_settings(scene);
+		if (obs_data_has_user_value(settings, "switcher_list")) {
+			OpenSwitcherInputSettings(scene);
+			for (SwitcherInputSettings *open : findChildren<SwitcherInputSettings *>()) {
+				if (open->GetScene() == scene) {
+					open->ShowPage(SwitcherInputSettings::PageList);
+				}
+			}
+		}
 	});
 	dialog->show();
 }
@@ -1161,4 +1178,99 @@ void OBSBasic::OpenSwitcherMultiCorder()
 	}
 
 	(new SwitcherMultiCorderWindow(this, switcherMultiCorder))->show();
+}
+
+void OBSBasic::SwitcherAutomationTick()
+{
+	OBSSource program = GetProgramSource();
+	OBSSource lastProgram = OBSGetStrongRef(switcherLastProgram);
+	if (program && program != lastProgram) {
+		switcherPreviousProgram = switcherLastProgram;
+		switcherLastProgram = OBSGetWeakRef(program);
+	}
+
+	struct Input {
+		OBSSource scene;
+		OBSSource media;
+	};
+	std::vector<Input> inputs;
+
+	auto collect = [](void *param, obs_source_t *scene) {
+		auto *inputs = static_cast<std::vector<Input> *>(param);
+		OBSDataAutoRelease settings = obs_source_get_private_settings(scene);
+		bool hasList = obs_data_has_user_value(settings, "switcher_list");
+		bool hasTrigger = obs_data_get_int(settings, "switcher_end_action") != SWITCHER_END_NOTHING;
+		if (hasList || hasTrigger) {
+			if (OBSSource media = SwitcherFindMediaSource(scene)) {
+				inputs->push_back({OBSSource(scene), media});
+			}
+		}
+		return true;
+	};
+	obs_enum_scenes(collect, &inputs);
+
+	for (const Input &input : inputs) {
+		int state = (int)obs_source_media_get_state(input.media);
+		std::string uuid = obs_source_get_uuid(input.scene);
+		auto previous = switcherMediaStates.find(uuid);
+		bool justEnded = state == OBS_MEDIA_STATE_ENDED && previous != switcherMediaStates.end() &&
+				 previous->second != OBS_MEDIA_STATE_ENDED;
+		switcherMediaStates[uuid] = state;
+
+		if (!justEnded) {
+			continue;
+		}
+
+		/* A list moves on to its next video; the trigger waits for the end */
+		if (SwitcherAdvanceList(input.scene)) {
+			switcherMediaStates[uuid] = OBS_MEDIA_STATE_PLAYING;
+			continue;
+		}
+
+		if (input.scene == program) {
+			SwitcherRunEndTrigger(input.scene);
+		}
+	}
+}
+
+void OBSBasic::SwitcherRunEndTrigger(obs_source_t *scene)
+{
+	SwitcherEndTrigger trigger = SwitcherGetEndTrigger(scene);
+	OBSSource target;
+
+	switch (trigger.action) {
+	case SWITCHER_END_NEXT_INPUT: {
+		/* The input after this one in the grid, wrapping around */
+		int count = ui->scenes->count();
+		for (int i = 0; i < count; i++) {
+			if (GetOBSRef<OBSScene>(ui->scenes->item(i)) == obs_scene_from_source(scene)) {
+				OBSScene next = GetOBSRef<OBSScene>(ui->scenes->item((i + 1) % count));
+				target = obs_scene_get_source(next);
+				break;
+			}
+		}
+		break;
+	}
+	case SWITCHER_END_INPUT: {
+		OBSSourceAutoRelease source = obs_get_source_by_uuid(QT_TO_UTF8(trigger.targetUuid));
+		target = source.Get();
+		break;
+	}
+	case SWITCHER_END_PREVIOUS:
+		target = OBSGetStrongRef(switcherPreviousProgram);
+		break;
+	default:
+		return;
+	}
+
+	if (!target || target == scene) {
+		return;
+	}
+
+	blog(LOG_INFO, "Switcher trigger: '%s' ended, going to '%s'", obs_source_get_name(scene),
+	     obs_source_get_name(target));
+	TransitionToScene(target, trigger.cut);
+	if (trigger.cut) {
+		UpdatePreviewProgramIndicators();
+	}
 }

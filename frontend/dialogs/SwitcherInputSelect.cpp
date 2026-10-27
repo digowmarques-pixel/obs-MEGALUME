@@ -1,5 +1,7 @@
 #include "SwitcherInputSelect.hpp"
 
+#include <components/SwitcherAutomation.hpp>
+
 #include <OBSApp.hpp>
 #include <widgets/OBSBasic.hpp>
 
@@ -85,7 +87,7 @@ void SwitcherInputSelect::LoadTypes()
 	 * Only the ones available on this system and build are listed. */
 	std::vector<InputType> wanted = {
 		{"Switcher.InputType.Video", {"ffmpeg_source"}, "{\"is_local_file\":true}", {}},
-		{"Switcher.InputType.List", {"vlc_source"}, nullptr, {}},
+		{"Switcher.InputType.List", {"ffmpeg_source"}, "{\"is_local_file\":true}", {}},
 		{"Switcher.InputType.Camera",
 		 {"dshow_input", "v4l2_input", "macos-avcapture", "av_capture_input"},
 		 nullptr,
@@ -216,6 +218,15 @@ void SwitcherInputSelect::CreateInput()
 	}
 
 	OBSSource scene = CreateInputScene(id.c_str(), name, QT_TO_UTF8(QTStr(type.labelKey)), settings);
+	if (scene && strcmp(type.labelKey, "Switcher.InputType.List") == 0) {
+		/* A list input is a video input that plays a list of files */
+		QStringList files;
+		QString first = QT_UTF8(obs_data_get_string(settings, "local_file"));
+		if (!first.isEmpty()) {
+			files << first;
+		}
+		SwitcherSetList(scene, files);
+	}
 	if (scene) {
 		emit InputCreated(scene);
 	}

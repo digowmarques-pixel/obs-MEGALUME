@@ -145,6 +145,10 @@ SwitcherInputSettings::SwitcherInputSettings(OBSBasic *main_, obs_source_t *scen
 	nav->setFixedWidth(170);
 	nav->addItem(QTStr("Switcher.InputSettings.General"));
 	nav->addItem(QTStr("Switcher.InputSettings.Layers"));
+	nav->addItem(QTStr("Switcher.InputSettings.List"));
+	nav->addItem(QTStr("Switcher.InputSettings.Triggers"));
+	nav->addItem(QTStr("Switcher.InputSettings.Colour"));
+	nav->addItem(QTStr("Switcher.InputSettings.Title"));
 	layout->addWidget(nav);
 
 	QVBoxLayout *right = new QVBoxLayout();
@@ -153,6 +157,10 @@ SwitcherInputSettings::SwitcherInputSettings(OBSBasic *main_, obs_source_t *scen
 	pages = new QStackedWidget(this);
 	pages->addWidget(CreateGeneralPage());
 	pages->addWidget(CreateLayersPage());
+	pages->addWidget(CreateListPage());
+	pages->addWidget(CreateTriggersPage());
+	pages->addWidget(CreateColourPage());
+	pages->addWidget(CreateTitlePage());
 	right->addWidget(pages);
 
 	/* Live preview of the input under the settings */
@@ -169,8 +177,12 @@ SwitcherInputSettings::SwitcherInputSettings(OBSBasic *main_, obs_source_t *scen
 
 	connect(nav.data(), &QListWidget::currentRowChanged, this, [this](int row) {
 		pages->setCurrentIndex(row);
-		if (row == 1) {
+		if (row == PageLayers) {
 			RefreshLayers();
+		} else if (row == PageList) {
+			RefreshList();
+		} else if (row == PageTitle) {
+			RefreshTitles();
 		}
 	});
 	nav->setCurrentRow(0);
@@ -193,6 +205,11 @@ SwitcherInputSettings::~SwitcherInputSettings()
 OBSSource SwitcherInputSettings::GetScene() const
 {
 	return OBSGetStrongRef(weakScene);
+}
+
+void SwitcherInputSettings::ShowPage(Page page)
+{
+	nav->setCurrentRow(page);
 }
 
 void SwitcherInputSettings::DrawPreview(void *data, uint32_t cx, uint32_t cy)

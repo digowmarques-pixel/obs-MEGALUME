@@ -12,8 +12,11 @@ class OBSQTDisplay;
 class QButtonGroup;
 class QCheckBox;
 class QComboBox;
+class QLabel;
 class QLineEdit;
 class QListWidget;
+class QSlider;
+class QVBoxLayout;
 class QStackedWidget;
 
 #define SWITCHER_LAYER_COUNT 10
@@ -42,10 +45,47 @@ class SwitcherInputSettings : public QDialog {
 	std::array<LayerRow, SWITCHER_LAYER_COUNT> layers;
 	bool updatingLayers = false;
 
+	/* List */
+	QPointer<QListWidget> listFiles;
+	QPointer<QCheckBox> listLoop;
+	QPointer<QWidget> listControls;
+	QPointer<QLabel> listNoVideo;
+
+	/* Triggers */
+	QPointer<QComboBox> endAction;
+	QPointer<QComboBox> endTarget;
+	QPointer<QComboBox> endTransition;
+
+	/* Colour */
+	struct ColourSlider {
+		const char *setting;
+		double scale;
+		QPointer<QSlider> slider;
+		QPointer<QLabel> value;
+	};
+	std::vector<ColourSlider> colourSliders;
+	bool updatingColour = false;
+
+	/* Title */
+	QPointer<QVBoxLayout> titleFields;
+
 	static void DrawPreview(void *data, uint32_t cx, uint32_t cy);
 
 	QWidget *CreateGeneralPage();
 	QWidget *CreateLayersPage();
+	QWidget *CreateListPage();
+	QWidget *CreateTriggersPage();
+	QWidget *CreateColourPage();
+	QWidget *CreateTitlePage();
+
+	void RefreshList();
+	void SaveList();
+	void AddListFiles();
+	void SaveEndTrigger();
+	OBSSource ColourFilter(bool create);
+	void ApplyColour();
+	void RefreshTitles();
+	void AddTitle();
 
 	void Rename();
 	void RefreshLayers();
@@ -61,6 +101,9 @@ public:
 	~SwitcherInputSettings();
 
 	OBSSource GetScene() const;
+
+	enum Page { PageGeneral, PageLayers, PageList, PageTriggers, PageColour, PageTitle };
+	void ShowPage(Page page);
 
 signals:
 	void Changed();
