@@ -32,9 +32,19 @@ SwitcherMultiCorder::SwitcherMultiCorder(OBSBasic *main_) : QObject(main_), main
 
 SwitcherMultiCorder::~SwitcherMultiCorder()
 {
+	ForceStopAll();
+}
+
+void SwitcherMultiCorder::ForceStopAll()
+{
+	if (recorders.empty()) {
+		return;
+	}
+
 	for (auto &[uuid, recorder] : recorders) {
 		recorder->stopSignal.Disconnect();
 		if (recorder->output) {
+			lastStatus[uuid] = QTStr("Switcher.MultiCorder.Status.Saved");
 			obs_output_force_stop(recorder->output);
 		}
 	}
@@ -42,6 +52,7 @@ SwitcherMultiCorder::~SwitcherMultiCorder()
 	while (!recorders.empty()) {
 		Release(recorders.begin()->first);
 	}
+	emit StateChanged();
 }
 
 SwitcherMultiCorder::Settings SwitcherMultiCorder::LoadSettings() const

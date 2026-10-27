@@ -48,6 +48,7 @@
 #include <widgets/AudioMixer.hpp>
 #include <dialogs/SwitcherStreamSettings.hpp>
 #include <components/SwitcherBusOutputs.hpp>
+#include <dialogs/SwitcherMultiCorder.hpp>
 #include <widgets/OBSProjector.hpp>
 
 #include <OBSStudioAPI.hpp>
@@ -1896,6 +1897,9 @@ void OBSBasic::closeWindow()
 
 	/* Bus outputs listen to the audio mixes, so stop them while those exist */
 	delete switcherBusOutputs;
+	if (switcherMultiCorder) {
+		switcherMultiCorder->ForceStopAll();
+	}
 
 	/* Clear all scene data (dialogs, widgets, widget sub-items, scenes,
 	 * sources, etc) so that all references are released before shutdown */
@@ -2059,6 +2063,11 @@ void OBSBasic::OnEvent(enum obs_frontend_event event)
 	/* Overlay channels are emptied along with the old scene collection */
 	if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CLEANUP) {
 		ClearSwitcherOverlays();
+		/* Recorders hold the scenes they record, so they have to let go
+		 * before the collection is cleared */
+		if (switcherMultiCorder) {
+			switcherMultiCorder->ForceStopAll();
+		}
 	}
 
 	/* Extra stream destinations are stored per profile */

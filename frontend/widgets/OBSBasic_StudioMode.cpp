@@ -183,11 +183,6 @@ void OBSBasic::CreateProgramOptions()
 
 void OBSBasic::TogglePreviewProgramMode()
 {
-	/* Switcher Mode is built on top of Studio Mode, so leave it first */
-	if (switcherMode && IsPreviewProgramMode()) {
-		SetSwitcherMode(false, true);
-	}
-
 	SetPreviewProgramMode(!IsPreviewProgramMode());
 }
 
@@ -195,6 +190,12 @@ void OBSBasic::SetPreviewProgramMode(bool enabled)
 {
 	if (IsPreviewProgramMode() == enabled) {
 		return;
+	}
+
+	/* Switcher Mode is built on top of Studio Mode, so leaving Studio
+	 * Mode, by the menu, a hotkey or the frontend API, leaves it first */
+	if (!enabled && switcherMode) {
+		SetSwitcherMode(false, true);
 	}
 
 	os_atomic_set_bool(&previewProgramMode, enabled);

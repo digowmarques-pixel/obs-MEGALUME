@@ -257,7 +257,14 @@ using PlatformDevice = PulseDevice;
 
 #else
 
-using PlatformDevice = void;
+/* No bus outputs on this platform yet; the device never opens */
+class NullDevice : public SwitcherBusOutputs::Device {
+public:
+	bool Open(const QString &, uint32_t &, uint32_t &) override { return false; }
+	bool Write(const float *, uint32_t) override { return false; }
+};
+
+using PlatformDevice = NullDevice;
 
 #endif
 
@@ -320,15 +327,7 @@ void SwitcherBusOutputs::Load()
 
 void SwitcherBusOutputs::Open(Output &output)
 {
-#ifdef _WIN32
-	constexpr bool supported = true;
-#elif defined(__linux__)
-	constexpr bool supported = true;
-#else
-	constexpr bool supported = false;
-#endif
-
-	if constexpr (supported) {
+	{
 		if (output.deviceId.isEmpty()) {
 			return;
 		}

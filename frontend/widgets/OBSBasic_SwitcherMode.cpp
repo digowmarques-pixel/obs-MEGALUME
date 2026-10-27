@@ -168,7 +168,7 @@ void OBSBasic::InitSwitcherMode()
 	/* Video lists and end-of-video triggers */
 	QTimer *automationTimer = new QTimer(this);
 	connect(automationTimer, &QTimer::timeout, this, &OBSBasic::SwitcherAutomationTick);
-	automationTimer->start(40);
+	automationTimer->start(100);
 
 	/* Extra stream destinations share the main stream's encoders */
 	switcherMultistream = new SwitcherMultistream(this, [this]() -> OBSOutputAutoRelease {
@@ -283,10 +283,20 @@ void OBSBasic::SetSwitcherMode(bool enable, bool applyLayout)
 		});
 		ui->preview->installEventFilter(switcherDoubleClickWatcher);
 
-		if (!config_get_bool(App()->GetUserConfig(), "BasicWindow", "VerticalVolumeControl")) {
+		/* Bus buttons need the vertical mixer; remember the user's layout
+		 * so leaving Switcher Mode gives it back */
+		bool vertical = config_get_bool(App()->GetUserConfig(), "BasicWindow", "VerticalVolumeControl");
+		config_set_bool(App()->GetUserConfig(), "BasicWindow", "SwitcherPrevMixerVertical", vertical);
+		if (!vertical) {
 			toggleMixerLayout();
 		}
 	} else {
+		if (config_has_user_value(App()->GetUserConfig(), "BasicWindow", "SwitcherPrevMixerVertical") &&
+		    !config_get_bool(App()->GetUserConfig(), "BasicWindow", "SwitcherPrevMixerVertical") &&
+		    config_get_bool(App()->GetUserConfig(), "BasicWindow", "VerticalVolumeControl")) {
+			toggleMixerLayout();
+		}
+
 		DestroySwitcherBar();
 		DestroySwitcherInputGrid();
 		DestroySwitcherBusMeters();
@@ -1192,6 +1202,10 @@ void OBSBasic::OpenSwitcherMultiCorder()
 
 void OBSBasic::SwitcherAutomationTick()
 {
+	if (!switcherMode) {
+		return;
+	}
+
 	OBSSource program = GetProgramSource();
 	OBSSource lastProgram = OBSGetStrongRef(switcherLastProgram);
 	if (program && program != lastProgram) {
@@ -1219,13 +1233,14 @@ void OBSBasic::SwitcherAutomationTick()
 	};
 	obs_enum_scenes(collect, &inputs);
 
+	std::unordered_map<std::string, int> states;
 	for (const Input &input : inputs) {
 		int state = (int)obs_source_media_get_state(input.media);
 		std::string uuid = obs_source_get_uuid(input.scene);
 		auto previous = switcherMediaStates.find(uuid);
 		bool justEnded = state == OBS_MEDIA_STATE_ENDED && previous != switcherMediaStates.end() &&
 				 previous->second != OBS_MEDIA_STATE_ENDED;
-		switcherMediaStates[uuid] = state;
+		states[uuid] = state;
 
 		if (!justEnded) {
 			continue;
@@ -1233,7 +1248,7 @@ void OBSBasic::SwitcherAutomationTick()
 
 		/* A list moves on to its next video; the trigger waits for the end */
 		if (SwitcherAdvanceList(input.scene)) {
-			switcherMediaStates[uuid] = OBS_MEDIA_STATE_PLAYING;
+			states[uuid] = OBS_MEDIA_STATE_PLAYING;
 			continue;
 		}
 
@@ -1241,6 +1256,9 @@ void OBSBasic::SwitcherAutomationTick()
 			SwitcherRunEndTrigger(input.scene);
 		}
 	}
+
+	/* Inputs that lost their list or trigger drop out of the map */
+	switcherMediaStates.swap(states);
 }
 
 void OBSBasic::SwitcherRunEndTrigger(obs_source_t *scene)
@@ -1311,10 +1329,12 @@ void OBSBasic::CreateSwitcherHotkeys()
 		switcherHotkeys[id] = std::move(action);
 
 		const char *saved = config_get_string(activeConfiguration, "Hotkeys", nameUtf8.constData());
-		if (saved) {
-			OBSDataAutoRelease data = obs_data_create_from_json(saved);
+		OBSDataAutoRelease data = saved ? obs_data_create_from_json(saved) : nullptr;
+		if (data) {
 			OBSDataArrayAutoRelease bindings = obs_data_get_array(data, "bindings");
-			obs_hotkey_load(id, bindings);
+			if (bindings) {
+				obs_hotkey_load(id, bindings);
+			}
 		}
 	};
 
@@ -1432,6 +1452,14 @@ void OBSBasic::SwitcherReplayCapture(SwitcherReplayTarget target)
 
 	switcherReplayPending = target;
 	ReplayBufferSave();
+
+	/* If the save is refused or fails, no saved event comes; forget the
+	 * request so an unrelated save later does not go to air */
+	QTimer::singleShot(10000, this, [this, target]() {
+		if (switcherReplayPending == target) {
+			switcherReplayPending = SwitcherReplayTarget::None;
+		}
+	});
 }
 
 void OBSBasic::SwitcherReplaySaved()

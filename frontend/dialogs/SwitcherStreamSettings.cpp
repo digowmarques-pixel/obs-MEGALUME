@@ -116,7 +116,11 @@ bool SwitcherMultistream::Start(int index)
 	const Destination &dest = destinations[index];
 
 	if (rt.output) {
-		return true;
+		if (obs_output_active(rt.output)) {
+			return true;
+		}
+		/* Stopped, but its stop notification has not been handled yet */
+		ReleaseOutput(index);
 	}
 
 	if (dest.server.trimmed().isEmpty()) {
@@ -223,6 +227,7 @@ void SwitcherMultistream::OutputStopped(void *data, calldata_t *calldata)
 	Runtime *rt = static_cast<Runtime *>(data);
 	int code = (int)calldata_int(calldata, "code");
 	const char *error = calldata_string(calldata, "last_error");
+	obs_output_t *stopped = static_cast<obs_output_t *>(calldata_ptr(calldata, "output"));
 	QString message = code == OBS_OUTPUT_SUCCESS
 				  ? QTStr("Switcher.Stream.Status.Off")
 				  : QTStr("Switcher.Stream.Status.Error")
@@ -230,7 +235,11 @@ void SwitcherMultistream::OutputStopped(void *data, calldata_t *calldata)
 
 	QMetaObject::invokeMethod(
 		rt->owner,
-		[owner = rt->owner, index = rt->index, message]() {
+		[owner = rt->owner, index = rt->index, message, stopped]() {
+			/* A restart may already own a newer output by now */
+			if (owner->runtime[index].output.Get() != stopped) {
+				return;
+			}
 			blog(LOG_INFO, "Switcher destination %d stopped", index + 2);
 			owner->ReleaseOutput(index);
 			owner->SetStatus(index, message);

@@ -19,6 +19,7 @@
 
 #include "OBSBasic.hpp"
 
+#include <components/SwitcherInputGrid.hpp>
 #include <dialogs/SwitcherInputSelect.hpp>
 
 #include <qt-wrappers.hpp>
@@ -197,9 +198,46 @@ void OBSBasic::AddDropSource(const char *data, DropType image)
 		}
 		OBSSource input = SwitcherInputSelect::CreateInputScene(type, QT_TO_UTF8(name),
 									obs_source_get_display_name(type), settings);
-		if (input) {
-			main->SetCurrentScene(input);
+		if (!input) {
+			return;
 		}
+		main->SetCurrentScene(input);
+
+		/* Undo removes the input and its source; redo loads both back */
+		OBSSource dropped = SwitcherFindMediaSource(input);
+		std::string inputUUID = obs_source_get_uuid(input);
+		std::string sourceUUID = dropped ? obs_source_get_uuid(dropped) : std::string();
+		OBSDataAutoRelease state = obs_data_create();
+		if (dropped) {
+			OBSDataAutoRelease sourceData = obs_save_source(dropped);
+			obs_data_set_obj(state, "source", sourceData);
+		}
+		OBSDataAutoRelease inputData = obs_save_source(input);
+		obs_data_set_obj(state, "input", inputData);
+
+		auto undo = [inputUUID, sourceUUID](const std::string &) {
+			OBSSourceAutoRelease scene = obs_get_source_by_uuid(inputUUID.c_str());
+			if (scene) {
+				obs_source_remove(scene);
+			}
+			OBSSourceAutoRelease source = obs_get_source_by_uuid(sourceUUID.c_str());
+			if (source) {
+				obs_source_remove(source);
+			}
+		};
+		auto redo = [](const std::string &json) {
+			OBSDataAutoRelease state = obs_data_create_from_json(json.c_str());
+			OBSDataAutoRelease sourceData = obs_data_get_obj(state, "source");
+			OBSDataAutoRelease inputData = obs_data_get_obj(state, "input");
+			OBSSourceAutoRelease source = sourceData ? obs_load_source(sourceData) : nullptr;
+			OBSSourceAutoRelease scene = obs_load_source(inputData);
+			if (scene) {
+				obs_source_load2(scene);
+				OBSBasic::Get()->SetCurrentScene(scene.Get(), true);
+			}
+		};
+		undo_s.add_action(QTStr("Undo.Add").arg(obs_source_get_name(input)), undo, redo, "",
+				  std::string(obs_data_get_json(state)));
 		return;
 	}
 

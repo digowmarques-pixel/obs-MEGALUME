@@ -62,6 +62,9 @@ public:
 	bool Start(obs_source_t *scene, const Settings &settings);
 	void Stop(const std::string &uuid);
 	void StopAll();
+	/* Stops and releases every recorder right away, for when the scenes
+	 * they record are about to go away */
+	void ForceStopAll();
 
 	bool IsRecording(const std::string &uuid) const;
 	bool AnyRecording() const;
