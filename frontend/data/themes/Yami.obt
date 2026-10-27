@@ -2118,6 +2118,21 @@ OBSBasicFilters #widget_2 QPushButton {
     font-size: var(--font_small);
 }
 
+#switcherTransitionColumn .switcher-column-overlay {
+    height: 24px;
+    max-height: 24px;
+    min-width: 0px;
+    padding: 0px;
+    font-size: var(--font_small);
+    border-radius: var(--switcher_radius_small);
+}
+
+#switcherTransitionColumn .switcher-column-overlay.state-active {
+    background: var(--switcher_program);
+    border-color: var(--switcher_program);
+    color: var(--switcher_title_text);
+}
+
 #switcherMediaBar {
     background: transparent;
 }
@@ -2606,6 +2621,33 @@ SceneTree {
     width: 12px;
     height: 24px;
     margin: -24px 0px;
+}
+
+/* Switcher Mode vertical T-Bar */
+
+#switcherTransitionColumn .slider-tbar {
+    height: 90px;
+    min-height: 90px;
+    width: 26px;
+}
+
+#switcherTransitionColumn .slider-tbar::groove:vertical {
+    width: 6px;
+    border-radius: 3px;
+    background: var(--grey8);
+}
+
+#switcherTransitionColumn .slider-tbar::add-page:vertical {
+    background: var(--switcher_accent);
+    border-radius: 3px;
+}
+
+#switcherTransitionColumn .slider-tbar::handle:vertical {
+    height: 14px;
+    width: 26px;
+    margin: 0px -10px;
+    border-radius: 4px;
+    background: var(--text_light);
 }
 
 /* YouTube Integration */

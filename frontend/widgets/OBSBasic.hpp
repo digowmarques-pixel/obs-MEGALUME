@@ -1489,6 +1489,7 @@ private:
 	QPointer<QFrame> switcherProgramMedia;
 	QPointer<MediaControls> switcherPreviewControls;
 	QPointer<MediaControls> switcherProgramControls;
+	QPointer<QPushButton> switcherColumnOverlays[8];
 	bool switcherInputsRefreshQueued = false;
 	QPointer<QWidget> switcherMixerContainer;
 	QPointer<QWidget> switcherMixer;

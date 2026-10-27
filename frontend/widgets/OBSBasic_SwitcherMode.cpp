@@ -37,9 +37,11 @@
 #include <qt-wrappers.hpp>
 
 #include <QDateTime>
+#include <QGridLayout>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QMenu>
+#include <QStyle>
 #include <QTimer>
 #include <QToolBar>
 #include <QToolButton>
@@ -271,6 +273,23 @@ void OBSBasic::SetSwitcherMode(bool enable, bool applyLayout)
 			transitionButton->setText(QTStr("Transition"));
 			setClasses(transitionButton, "");
 		}
+
+		if (programOptions) {
+			delete programOptions->findChild<QWidget *>("switcherColumnOverlays");
+			if (QLabel *label = programOptions->findChild<QLabel *>("quickTransitionsLabel")) {
+				label->setVisible(true);
+			}
+		}
+
+		if (IsPreviewProgramMode() && tBar) {
+			tBar->setOrientation(Qt::Horizontal);
+			tBar->setInvertedAppearance(false);
+			tBar->setMinimumHeight(0);
+			tBar->setMaximumHeight(QWIDGETSIZE_MAX);
+			tBar->setMinimumWidth(0);
+			tBar->setMaximumWidth(QWIDGETSIZE_MAX);
+			static_cast<QVBoxLayout *>(programOptions->layout())->setAlignment(tBar, Qt::Alignment());
+		}
 	}
 
 	if (programLabel) {
@@ -410,6 +429,52 @@ void OBSBasic::ApplySwitcherProgramOptions()
 
 	if (QLabel *label = programOptions->findChild<QLabel *>("quickTransitionsLabel")) {
 		label->setText(QTStr("Switcher.Transitions"));
+		label->setVisible(false);
+	}
+
+	/* Vertical T-Bar, pulled down to take, like a hardware switcher */
+	if (tBar) {
+		tBar->setOrientation(Qt::Vertical);
+		tBar->setInvertedAppearance(true);
+		tBar->setFixedHeight(90);
+		tBar->setFixedWidth(26);
+
+		static_cast<QVBoxLayout *>(programOptions->layout())->setAlignment(tBar, Qt::AlignHCenter);
+
+		/* The column was renamed after the T-Bar got its style */
+		tBar->style()->unpolish(tBar);
+		tBar->style()->polish(tBar);
+	}
+
+	/* Overlays 1-8 put the Preview input on top of Program */
+	if (!programOptions->findChild<QWidget *>("switcherColumnOverlays")) {
+		QWidget *overlayGrid = new QWidget();
+		overlayGrid->setObjectName("switcherColumnOverlays");
+		QGridLayout *grid = new QGridLayout(overlayGrid);
+		grid->setContentsMargins(0, 6, 0, 6);
+		grid->setSpacing(3);
+
+		for (int i = 0; i < SWITCHER_OVERLAY_COUNT; i++) {
+			QPushButton *button = new QPushButton(QString::number(i + 1), overlayGrid);
+			button->setProperty("class", "switcher-column-overlay");
+			button->setToolTip(QTStr("Switcher.ColumnOverlayTT").arg(i + 1));
+			button->setFocusPolicy(Qt::NoFocus);
+			grid->addWidget(button, i / 4, i % 4);
+			switcherColumnOverlays[i] = button;
+
+			connect(button, &QPushButton::clicked, this, [this, i]() {
+				/* A live overlay goes off, otherwise Preview goes on */
+				OBSSource current = OBSGetStrongRef(switcherOverlayScenes[i]);
+				OBSSource target = current ? current : GetCurrentSceneSource();
+				if (target) {
+					ToggleSwitcherOverlay(target, i);
+				}
+			});
+		}
+
+		QVBoxLayout *columnLayout = static_cast<QVBoxLayout *>(programOptions->layout());
+		int tBarIndex = columnLayout->indexOf(tBar);
+		columnLayout->insertWidget(tBarIndex >= 0 ? tBarIndex : columnLayout->count() - 1, overlayGrid);
 	}
 
 	if (programOptions->findChild<QWidget *>("switcherClockFrame")) {
@@ -662,6 +727,13 @@ void OBSBasic::UpdateSwitcherInputStates()
 	}
 
 	switcherInputGrid->SetOverlayStates(overlays);
+
+	for (int i = 0; i < SWITCHER_OVERLAY_COUNT; i++) {
+		if (switcherColumnOverlays[i]) {
+			setClasses(switcherColumnOverlays[i],
+				   overlays[i] ? "switcher-column-overlay state-active" : "switcher-column-overlay");
+		}
+	}
 
 	UpdateSwitcherMediaBars();
 }
