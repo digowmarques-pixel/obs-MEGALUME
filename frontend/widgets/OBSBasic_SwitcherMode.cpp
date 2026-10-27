@@ -428,6 +428,37 @@ void OBSBasic::CreateSwitcherBar()
 	connect(multiCorder, &QToolButton::clicked, this, &OBSBasic::OpenSwitcherMultiCorder);
 	barLayout->addWidget(multiCorder);
 
+	/* Virtual camera: click to start or stop, the arrow opens its setup */
+	QToolButton *vcam = new QToolButton(barContents);
+	vcam->setObjectName("switcherVirtualCam");
+	vcam->setText(QTStr("Switcher.VirtualCam.Button"));
+	vcam->setToolButtonStyle(Qt::ToolButtonTextOnly);
+	vcam->setCheckable(true);
+	vcam->setPopupMode(QToolButton::MenuButtonPopup);
+	QMenu *vcamMenu = new QMenu(vcam);
+	vcamMenu->addAction(QTStr("Switcher.VirtualCam.Setup"), this, &OBSBasic::OpenVirtualCamConfig);
+	vcam->setMenu(vcamMenu);
+	auto updateVcam = [this, vcam]() {
+		bool active = VirtualCamActive();
+		QSignalBlocker blocker(vcam);
+		vcam->setChecked(active);
+		vcam->setEnabled(VCamEnabled());
+		vcam->setText(QTStr(active ? "Switcher.VirtualCam.On" : "Switcher.VirtualCam.Button"));
+		setClasses(vcam, active ? "state-active" : "");
+		vcam->style()->unpolish(vcam);
+		vcam->style()->polish(vcam);
+	};
+	connect(vcam, &QToolButton::clicked, this, [this, updateVcam]() {
+		/* The state follows the virtual camera, not the click */
+		VirtualCamActionTriggered();
+		updateVcam();
+	});
+	connect(this, &OBSBasic::VirtualCamStarted, vcam, updateVcam);
+	connect(this, &OBSBasic::VirtualCamStopped, vcam, updateVcam);
+	connect(this, &OBSBasic::VirtualCamEnabled, vcam, updateVcam);
+	updateVcam();
+	barLayout->addWidget(vcam);
+
 	QToolButton *replay = new QToolButton(barContents);
 	replay->setObjectName("switcherReplayButton");
 	replay->setText(QTStr("Switcher.Replay.Button"));

@@ -404,6 +404,11 @@ void VolumeControl::setLayoutVertical(bool vertical)
 		newLayout->setStretch(0, 3);
 		newLayout->setStretch(1, 6);
 
+		/* The bus buttons only show in the vertical layout, but they have to
+		 * leave the old layout like every other widget: whatever stays in
+		 * it is deleted along with it below */
+		newLayout->addWidget(busFrame);
+
 		volumeMeter->setFocusProxy(slider);
 	}
 

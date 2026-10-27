@@ -2182,7 +2182,8 @@ OBSBasicFilters #widget_2 QPushButton {
 #switcherAddInput,
 #switcherDestinations,
 #switcherExternalButton,
-#switcherReplayButton {
+#switcherReplayButton,
+#switcherVirtualCam {
     background-color: var(--switcher_button_bg);
     color: var(--text);
     border: 1px solid var(--switcher_button_bg);
@@ -2201,6 +2202,12 @@ OBSBasicFilters #widget_2 QPushButton {
 #switcherMultiCorderButton:hover {
     background-color: var(--red3);
     border-color: var(--red3);
+}
+
+#switcherVirtualCam.state-active {
+    background-color: var(--switcher_onair);
+    border-color: var(--switcher_onair);
+    color: var(--switcher_title_text);
 }
 
 #switcherMultiCorderStart {
@@ -2243,7 +2250,8 @@ OBSBasicFilters #widget_2 QPushButton {
 #switcherAddInput:hover,
 #switcherDestinations:hover,
 #switcherExternalButton:hover,
-#switcherReplayButton:hover {
+#switcherReplayButton:hover,
+#switcherVirtualCam:hover {
     background-color: var(--switcher_button_hover);
     border-color: var(--switcher_button_hover);
 }
