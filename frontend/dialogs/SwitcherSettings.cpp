@@ -177,8 +177,9 @@ QWidget *SwitcherSettings::CreateAudioPage()
 	/* Buses new audio sources are routed to */
 	QHBoxLayout *buses = new QHBoxLayout();
 	int mask = UserInt("SwitcherDefaultBuses", 0x3F);
-	const char *names[3] = {"Switcher.Bus.MasterName", "Switcher.Bus.AName", "Switcher.Bus.BName"};
-	for (int i = 0; i < 3; i++) {
+	const char *names[SWITCHER_BUS_COUNT] = {"Switcher.Bus.MasterName", "Switcher.Bus.AName", "Switcher.Bus.BName",
+						 "Switcher.Bus.CName", "Switcher.Bus.DName"};
+	for (int i = 0; i < SWITCHER_BUS_COUNT; i++) {
 		defaultBus[i] = new QCheckBox(QTStr(names[i]), page);
 		defaultBus[i]->setChecked((mask & (1 << i)) != 0);
 		buses->addWidget(defaultBus[i]);
@@ -260,9 +261,9 @@ void SwitcherSettings::Save()
 		}
 	}
 
-	/* Only tracks 1-3 are shown as buses; 4-6 keep the OBS default */
-	int mask = UserInt("SwitcherDefaultBuses", 0x3F) & ~0x7;
-	for (int i = 0; i < 3; i++) {
+	/* Only tracks 1-5 are shown as buses; track 6 keeps the OBS default */
+	int mask = UserInt("SwitcherDefaultBuses", 0x3F) & ~((1 << SWITCHER_BUS_COUNT) - 1);
+	for (int i = 0; i < SWITCHER_BUS_COUNT; i++) {
 		if (defaultBus[i]->isChecked()) {
 			mask |= 1 << i;
 		}

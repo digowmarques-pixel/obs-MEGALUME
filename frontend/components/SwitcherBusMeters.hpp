@@ -8,10 +8,10 @@
 class SwitcherVuMeter;
 struct audio_data;
 
-#define SWITCHER_BUS_COUNT 3
+#define SWITCHER_BUS_COUNT 5
 
-/* Output meters for the switcher's audio buses. Master, A and B are OBS
- * audio tracks 1-3, the same tracks the M, A and B mixer buttons route to. */
+/* Output meters for the switcher's audio buses. Master and A-D are OBS
+ * audio tracks 1-5, the same tracks the M and A-D mixer buttons route to. */
 class SwitcherBusMeters : public QFrame {
 	Q_OBJECT
 

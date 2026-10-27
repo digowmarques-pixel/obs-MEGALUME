@@ -82,9 +82,11 @@ VolumeControl::VolumeControl(obs_source_t *source, QWidget *parent, bool vertica
 	busLayout->setContentsMargins(0, 2, 0, 0);
 	busLayout->setSpacing(1);
 
-	const char *busNames[3] = {"Switcher.Bus.Master", "Switcher.Bus.A", "Switcher.Bus.B"};
-	const char *busTips[3] = {"Switcher.Bus.MasterTT", "Switcher.Bus.ATT", "Switcher.Bus.BTT"};
-	for (int i = 0; i < 3; i++) {
+	const char *busNames[SWITCHER_BUS_COUNT] = {"Switcher.Bus.Master", "Switcher.Bus.A", "Switcher.Bus.B",
+						    "Switcher.Bus.C", "Switcher.Bus.D"};
+	const char *busTips[SWITCHER_BUS_COUNT] = {"Switcher.Bus.MasterTT", "Switcher.Bus.ATT", "Switcher.Bus.BTT",
+						   "Switcher.Bus.CTT", "Switcher.Bus.DTT"};
+	for (int i = 0; i < SWITCHER_BUS_COUNT; i++) {
 		busButtons[i] = new QPushButton(QTStr(busNames[i]), busFrame);
 		busButtons[i]->setCheckable(true);
 		busButtons[i]->setToolTip(QTStr(busTips[i]));
@@ -809,7 +811,7 @@ void VolumeControl::processMixerState()
 	monitorButton->setChecked(showAsMonitored);
 
 	uint32_t mixers = obs_source_get_audio_mixers(source);
-	for (int i = 0; i < 3; i++) {
+	for (int i = 0; i < SWITCHER_BUS_COUNT; i++) {
 		QSignalBlocker blockBus(busButtons[i]);
 		busButtons[i]->setChecked((mixers & (1 << i)) != 0);
 	}

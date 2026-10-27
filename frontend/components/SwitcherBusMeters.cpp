@@ -24,8 +24,10 @@ SwitcherBusMeters::SwitcherBusMeters(QWidget *parent) : QFrame(parent)
 	layout->setContentsMargins(4, 4, 4, 4);
 	layout->setSpacing(6);
 
-	const char *names[SWITCHER_BUS_COUNT] = {"Switcher.Bus.MasterName", "Switcher.Bus.AName", "Switcher.Bus.BName"};
-	const char *tips[SWITCHER_BUS_COUNT] = {"Switcher.Bus.MasterTT", "Switcher.Bus.ATT", "Switcher.Bus.BTT"};
+	const char *names[SWITCHER_BUS_COUNT] = {"Switcher.Bus.MasterName", "Switcher.Bus.AName", "Switcher.Bus.BName",
+						 "Switcher.Bus.CName", "Switcher.Bus.DName"};
+	const char *tips[SWITCHER_BUS_COUNT] = {"Switcher.Bus.MasterTT", "Switcher.Bus.ATT", "Switcher.Bus.BTT",
+						"Switcher.Bus.CTT", "Switcher.Bus.DTT"};
 
 	struct audio_convert_info conversion = {};
 	conversion.format = AUDIO_FORMAT_FLOAT_PLANAR;

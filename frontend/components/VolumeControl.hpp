@@ -2,6 +2,7 @@
 
 #include <obs.hpp>
 
+#include <components/SwitcherBusMeters.hpp>
 #include <components/VolumeName.hpp>
 #include <components/VolumeSlider.hpp>
 
@@ -81,9 +82,9 @@ private:
 	QPushButton *muteButton;
 	QPushButton *monitorButton;
 
-	/* Switcher Mode bus routing: M, A and B map to audio tracks 1-3 */
+	/* Switcher Mode bus routing: M and A-D map to audio tracks 1-5 */
 	QFrame *busFrame;
-	QPushButton *busButtons[3];
+	QPushButton *busButtons[SWITCHER_BUS_COUNT];
 	bool showBusButtons = false;
 
 	OBSFader obs_fader;

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <components/SwitcherBusMeters.hpp>
+
 #include <QDialog>
 #include <QPointer>
 
@@ -35,7 +37,7 @@ class SwitcherSettings : public QDialog {
 
 	/* Audio Outputs */
 	QPointer<QComboBox> monitoringDevice;
-	QPointer<QCheckBox> defaultBus[3];
+	QPointer<QCheckBox> defaultBus[SWITCHER_BUS_COUNT];
 
 	/* Alerts */
 	QPointer<QCheckBox> alertVolume;
