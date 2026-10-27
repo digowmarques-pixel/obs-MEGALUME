@@ -1046,4 +1046,12 @@ void VolumeControl::setShowBusButtons(bool show)
 {
 	showBusButtons = show;
 	busFrame->setVisible(show && vertical);
+	updateBusButtons();
+}
+
+void VolumeControl::updateBusButtons()
+{
+	for (int i = 0; i < SWITCHER_BUS_COUNT; i++) {
+		busButtons[i]->setVisible(SwitcherBusEnabled(i));
+	}
 }

@@ -16,6 +16,15 @@
 #define METER_FLOOR_DB -60.0f
 #define METER_DECAY_DB 1.2f
 
+int SwitcherEnabledBuses()
+{
+	config_t *config = App()->GetUserConfig();
+	int mask = config_has_user_value(config, "BasicWindow", "SwitcherEnabledBuses")
+			   ? (int)config_get_int(config, "BasicWindow", "SwitcherEnabledBuses")
+			   : 0x7;
+	return mask | 1;
+}
+
 SwitcherBusMeters::SwitcherBusMeters(QWidget *parent) : QFrame(parent)
 {
 	setObjectName("switcherBusMeters");
@@ -65,9 +74,12 @@ SwitcherBusMeters::SwitcherBusMeters(QWidget *parent) : QFrame(parent)
 		stripLayout->addWidget(track);
 
 		layout->addWidget(strip);
+		bus.strip = strip;
 
 		audio_output_connect(obs_get_audio(), bus.mixIdx, &conversion, SwitcherBusMeters::AudioMixed, &bus);
 	}
+
+	UpdateVisibleBuses();
 
 	QTimer *timer = new QTimer(this);
 	connect(timer, &QTimer::timeout, this, &SwitcherBusMeters::UpdateMeters);
@@ -119,4 +131,13 @@ void SwitcherBusMeters::UpdateMeters()
 float SwitcherBusMeters::MasterLevel() const
 {
 	return std::max(buses[0].displayPeak[0], buses[0].displayPeak[1]);
+}
+
+void SwitcherBusMeters::UpdateVisibleBuses()
+{
+	for (int i = 0; i < SWITCHER_BUS_COUNT; i++) {
+		if (buses[i].strip) {
+			buses[i].strip->setVisible(SwitcherBusEnabled(i));
+		}
+	}
 }

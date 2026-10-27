@@ -175,11 +175,24 @@ QWidget *SwitcherSettings::CreateAudioPage()
 	monitoringDevice->setEnabled(obs_audio_monitoring_available());
 	form->addRow(QTStr("Switcher.Settings.Headphones"), monitoringDevice);
 
+	const char *names[SWITCHER_BUS_COUNT] = {"Switcher.Bus.MasterName", "Switcher.Bus.AName", "Switcher.Bus.BName",
+						 "Switcher.Bus.CName", "Switcher.Bus.DName"};
+
+	/* Buses in use; the others are hidden from the mixer and meters */
+	QHBoxLayout *enabledRow = new QHBoxLayout();
+	int enabledMask = SwitcherEnabledBuses();
+	for (int i = 0; i < SWITCHER_BUS_COUNT; i++) {
+		enabledBus[i] = new QCheckBox(QTStr(names[i]), page);
+		enabledBus[i]->setChecked((enabledMask & (1 << i)) != 0);
+		enabledBus[i]->setEnabled(i != 0);
+		enabledRow->addWidget(enabledBus[i]);
+	}
+	enabledRow->addStretch(1);
+	form->addRow(QTStr("Switcher.Settings.EnabledBuses"), enabledRow);
+
 	/* Buses new audio sources are routed to */
 	QHBoxLayout *buses = new QHBoxLayout();
 	int mask = UserInt("SwitcherDefaultBuses", 0x3F);
-	const char *names[SWITCHER_BUS_COUNT] = {"Switcher.Bus.MasterName", "Switcher.Bus.AName", "Switcher.Bus.BName",
-						 "Switcher.Bus.CName", "Switcher.Bus.DName"};
 	for (int i = 0; i < SWITCHER_BUS_COUNT; i++) {
 		defaultBus[i] = new QCheckBox(QTStr(names[i]), page);
 		defaultBus[i]->setChecked((mask & (1 << i)) != 0);
@@ -215,6 +228,19 @@ QWidget *SwitcherSettings::CreateAudioPage()
 		form->addRow(QTStr("Switcher.Settings.BusOutput").arg(QTStr(names[i])), combo);
 	}
 	form->addRow(QString(), Hint(QTStr("Switcher.Settings.BusOutputHint"), page));
+
+	/* Only buses in use offer their options */
+	auto updateRows = [this, form]() {
+		for (int i = 1; i < SWITCHER_BUS_COUNT; i++) {
+			bool on = enabledBus[i]->isChecked();
+			defaultBus[i]->setVisible(on);
+			form->setRowVisible(busOutput[i], on);
+		}
+	};
+	for (int i = 1; i < SWITCHER_BUS_COUNT; i++) {
+		connect(enabledBus[i], &QCheckBox::toggled, this, updateRows);
+	}
+	updateRows();
 	return page;
 }
 
@@ -286,6 +312,17 @@ void SwitcherSettings::Save()
 			obs_set_audio_monitoring_device(name.c_str(), id.c_str());
 			config_save_safe(main->Config(), "tmp", nullptr);
 		}
+	}
+
+	int enabled = 1;
+	for (int i = 1; i < SWITCHER_BUS_COUNT; i++) {
+		if (enabledBus[i]->isChecked()) {
+			enabled |= 1 << i;
+		}
+	}
+	if (enabled != SwitcherEnabledBuses()) {
+		config_set_int(config, "BasicWindow", "SwitcherEnabledBuses", enabled);
+		emit main->userSettingChanged("BasicWindow", "SwitcherEnabledBuses");
 	}
 
 	/* Only tracks 1-5 are shown as buses; track 6 keeps the OBS default */

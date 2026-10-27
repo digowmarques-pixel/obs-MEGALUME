@@ -37,6 +37,7 @@ class SwitcherSettings : public QDialog {
 
 	/* Audio Outputs */
 	QPointer<QComboBox> monitoringDevice;
+	QPointer<QCheckBox> enabledBus[SWITCHER_BUS_COUNT];
 	QPointer<QCheckBox> defaultBus[SWITCHER_BUS_COUNT];
 	QPointer<QComboBox> busOutput[SWITCHER_BUS_COUNT];
 

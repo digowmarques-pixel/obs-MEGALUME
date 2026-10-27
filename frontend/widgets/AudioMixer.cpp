@@ -243,6 +243,12 @@ AudioMixer::AudioMixer(QWidget *parent) : QFrame(parent)
 							control->setShowBusButtons(showBuses);
 						}
 					}
+				} else if (category == "BasicWindow" && name == "SwitcherEnabledBuses") {
+					for (auto &[uuid, control] : volumeList) {
+						if (control) {
+							control->updateBusButtons();
+						}
+					}
 				} else if (category == "BasicWindow" && name == "MixerShowInactive") {
 					updateShowInactive();
 				} else if (category == "BasicWindow" && name == "MixerKeepInactiveLast") {

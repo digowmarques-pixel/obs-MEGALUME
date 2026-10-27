@@ -608,6 +608,16 @@ void SwitcherInputTile::UpdateButtonStates()
 		hasMedia = true;
 		anyPlaying = anyPlaying || IsPlaying(media);
 		anyLooping = anyLooping || IsLooping(media);
+
+		/* A video that is not on air or in Preview only decodes its first
+		 * frame and keeps it aside; put it on screen so the thumbnail is
+		 * not black. A width of 0 means nothing is shown yet, and an
+		 * inactive source outputs no frames that could race with it */
+		obs_media_state state = obs_source_media_get_state(media);
+		if (!obs_source_active(media) && state != OBS_MEDIA_STATE_PLAYING && state != OBS_MEDIA_STATE_PAUSED &&
+		    obs_source_get_width(media) == 0) {
+			obs_source_show_preloaded_video(media);
+		}
 	}
 
 	loopButton->setEnabled(hasMedia);

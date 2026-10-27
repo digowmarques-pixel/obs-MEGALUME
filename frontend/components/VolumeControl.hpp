@@ -161,6 +161,7 @@ public:
 
 	bool isVertical() const { return vertical; }
 	void setShowBusButtons(bool show);
+	void updateBusButtons();
 	void setVertical(bool vertical);
 
 	void updateTabOrder();

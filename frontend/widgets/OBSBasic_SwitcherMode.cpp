@@ -166,6 +166,17 @@ void OBSBasic::InitSwitcherMode()
 	/* Buses can play on audio devices of their own */
 	switcherBusOutputs = new SwitcherBusOutputs(this);
 
+	/* Buses turned on or off in the switcher settings */
+	connect(this, &OBSBasic::userSettingChanged, this,
+		[this](const std::string &category, const std::string &name) {
+			if (category == "BasicWindow" && name == "SwitcherEnabledBuses") {
+				if (switcherBusMeters) {
+					switcherBusMeters->UpdateVisibleBuses();
+				}
+				ReloadSwitcherBusOutputs();
+			}
+		});
+
 	/* Video lists and end-of-video triggers */
 	QTimer *automationTimer = new QTimer(this);
 	connect(automationTimer, &QTimer::timeout, this, &OBSBasic::SwitcherAutomationTick);
@@ -1137,6 +1148,12 @@ void OBSBasic::EnsureSwitcherMediaBars()
 		/* Nor change height with width: the displays' heights set their
 		 * widths, so a bar growing taller when narrower would feed back */
 		bar->setFixedHeight(bar->sizeHint().height());
+
+		/* Hidden bars keep their space, so Preview and Program stay the
+		 * same size whether or not each one holds a video */
+		QSizePolicy policy = bar->sizePolicy();
+		policy.setRetainSizeWhenHidden(true);
+		bar->setSizePolicy(policy);
 		return bar;
 	};
 

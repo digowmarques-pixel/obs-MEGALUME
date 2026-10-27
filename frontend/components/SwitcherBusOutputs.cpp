@@ -314,7 +314,8 @@ void SwitcherBusOutputs::Load()
 {
 	for (int i = 0; i < SWITCHER_BUS_COUNT; i++) {
 		Output &output = outputs[i];
-		QString id = DeviceId(i);
+		/* A bus that is turned off plays nowhere */
+		QString id = SwitcherBusEnabled(i) ? DeviceId(i) : QString();
 		if (id == output.deviceId && (output.connected || id.isEmpty())) {
 			continue;
 		}
