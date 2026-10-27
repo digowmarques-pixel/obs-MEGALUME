@@ -48,6 +48,10 @@ public:
 	~SwitcherInputSelect();
 
 	static std::string UniqueSourceName(const std::string &base);
+	/* Creates a source and the input (scene) that shows it, fitted to the
+	 * canvas. Returns the input's scene source. */
+	static OBSSource CreateInputScene(const char *id, const std::string &name, const std::string &typeLabel,
+					  obs_data_t *settings);
 
 signals:
 	void InputCreated(OBSSource scene);

@@ -215,14 +215,23 @@ void SwitcherInputSelect::CreateInput()
 		name = QT_TO_UTF8(QTStr(type.labelKey));
 	}
 
+	OBSSource scene = CreateInputScene(id.c_str(), name, QT_TO_UTF8(QTStr(type.labelKey)), settings);
+	if (scene) {
+		emit InputCreated(scene);
+	}
+}
+
+OBSSource SwitcherInputSelect::CreateInputScene(const char *id, const std::string &name, const std::string &typeLabel,
+						obs_data_t *settings)
+{
 	/* Scenes and sources share one namespace, so the source gets the
 	 * input type appended to its name */
 	std::string sceneName = UniqueSourceName(name);
-	std::string sourceName = UniqueSourceName(name + " (" + QT_TO_UTF8(QTStr(type.labelKey)) + ")");
+	std::string sourceName = UniqueSourceName(name + " (" + typeLabel + ")");
 
-	OBSSourceAutoRelease source = obs_source_create(id.c_str(), sourceName.c_str(), settings, nullptr);
+	OBSSourceAutoRelease source = obs_source_create(id, sourceName.c_str(), settings, nullptr);
 	if (!source) {
-		return;
+		return nullptr;
 	}
 
 	OBSSceneAutoRelease scene = obs_scene_create(sceneName.c_str());
@@ -243,8 +252,7 @@ void SwitcherInputSelect::CreateInput()
 		obs_sceneitem_set_info2(item, &info);
 	}
 
-	blog(LOG_INFO, "Switcher input '%s' created with %s source '%s'", sceneName.c_str(), id.c_str(),
-	     sourceName.c_str());
+	blog(LOG_INFO, "Switcher input '%s' created with %s source '%s'", sceneName.c_str(), id, sourceName.c_str());
 
-	emit InputCreated(OBSSource(obs_scene_get_source(scene)));
+	return OBSSource(obs_scene_get_source(scene));
 }

@@ -218,6 +218,7 @@ class OBSBasic : public OBSMainWindow {
 	friend class OBSBasicStatusBar;
 	friend class OBSBasicSourceSelect;
 	friend class OBSBasicSettings;
+	friend class SwitcherOutputs;
 	friend class Auth;
 	friend class AutoConfig;
 	friend class AutoConfigStreamPage;
@@ -1529,6 +1530,7 @@ private:
 	void UpdateSwitcherMediaBars();
 	void OpenSwitcherSettings();
 	void OpenSwitcherMultiCorder();
+	void OpenSwitcherOutputs();
 	void UpdateSwitcherAlerts();
 	void RemoveSwitcherInput(OBSSource scene);
 	void ClearSwitcherOverlays();

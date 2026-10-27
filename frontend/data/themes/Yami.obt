@@ -2180,7 +2180,8 @@ OBSBasicFilters #widget_2 QPushButton {
 }
 
 #switcherAddInput,
-#switcherDestinations {
+#switcherDestinations,
+#switcherExternalButton {
     background-color: var(--switcher_button_bg);
     color: var(--text);
     border: 1px solid var(--switcher_button_bg);
@@ -2239,7 +2240,8 @@ OBSBasicFilters #widget_2 QPushButton {
 }
 
 #switcherAddInput:hover,
-#switcherDestinations:hover {
+#switcherDestinations:hover,
+#switcherExternalButton:hover {
     background-color: var(--switcher_button_hover);
     border-color: var(--switcher_button_hover);
 }

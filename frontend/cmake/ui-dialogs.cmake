@@ -49,6 +49,8 @@ target_sources(
     dialogs/SwitcherInputSettings.hpp
     dialogs/SwitcherMultiCorder.cpp
     dialogs/SwitcherMultiCorder.hpp
+    dialogs/SwitcherOutputs.cpp
+    dialogs/SwitcherOutputs.hpp
     dialogs/SwitcherSettings.cpp
     dialogs/SwitcherSettings.hpp
     dialogs/SwitcherStreamSettings.cpp

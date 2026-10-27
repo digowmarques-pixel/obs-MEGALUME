@@ -32,6 +32,7 @@
 #include <dialogs/SwitcherInputSelect.hpp>
 #include <dialogs/SwitcherInputSettings.hpp>
 #include <dialogs/SwitcherMultiCorder.hpp>
+#include <dialogs/SwitcherOutputs.hpp>
 #include <dialogs/SwitcherSettings.hpp>
 #include <dialogs/SwitcherStreamSettings.hpp>
 #include <utility/BasicOutputHandler.hpp>
@@ -403,6 +404,25 @@ void OBSBasic::CreateSwitcherBar()
 	multiCorder->setToolButtonStyle(Qt::ToolButtonTextOnly);
 	connect(multiCorder, &QToolButton::clicked, this, &OBSBasic::OpenSwitcherMultiCorder);
 	barLayout->addWidget(multiCorder);
+
+	/* External outputs: virtual camera and full screen outputs */
+	QToolButton *external = new QToolButton(barContents);
+	external->setObjectName("switcherExternalButton");
+	external->setText(QTStr("Switcher.External.Button"));
+	external->setToolButtonStyle(Qt::ToolButtonTextOnly);
+	external->setPopupMode(QToolButton::InstantPopup);
+	QMenu *externalMenu = new QMenu(external);
+	QAction *vcamAction = externalMenu->addAction(QString());
+	connect(vcamAction, &QAction::triggered, this, &OBSBasic::VirtualCamActionTriggered);
+	externalMenu->addSeparator();
+	externalMenu->addAction(QTStr("Switcher.External.Outputs"), this, &OBSBasic::OpenSwitcherOutputs);
+	connect(externalMenu, &QMenu::aboutToShow, this, [this, vcamAction]() {
+		vcamAction->setText(
+			QTStr(VirtualCamActive() ? "Basic.Main.StopVirtualCam" : "Basic.Main.StartVirtualCam"));
+		vcamAction->setEnabled(VCamEnabled());
+	});
+	external->setMenu(externalMenu);
+	barLayout->addWidget(external);
 
 	QToolButton *settings = new QToolButton(barContents);
 	settings->setObjectName("switcherSettingsButton");
@@ -1027,6 +1047,18 @@ void OBSBasic::OpenSwitcherSettings()
 		}
 		UpdateSwitcherAlerts();
 	});
+	dialog->show();
+}
+
+void OBSBasic::OpenSwitcherOutputs()
+{
+	if (SwitcherOutputs *open = findChild<SwitcherOutputs *>()) {
+		open->raise();
+		open->activateWindow();
+		return;
+	}
+
+	SwitcherOutputs *dialog = new SwitcherOutputs(this);
 	dialog->show();
 }
 

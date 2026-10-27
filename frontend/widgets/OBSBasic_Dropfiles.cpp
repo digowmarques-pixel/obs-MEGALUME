@@ -19,6 +19,8 @@
 
 #include "OBSBasic.hpp"
 
+#include <dialogs/SwitcherInputSelect.hpp>
+
 #include <qt-wrappers.hpp>
 
 #include <QFileInfo>
@@ -186,6 +188,21 @@ void OBSBasic::AddDropSource(const char *data, DropType image)
 	if (name.isEmpty()) {
 		name = obs_source_get_display_name(type);
 	}
+
+	/* In switcher mode every dropped file becomes an input of its own,
+	 * named after the file, and lands in Preview */
+	if (main->IsSwitcherMode()) {
+		if (image != DropType_RawText && image != DropType_Url) {
+			name = QFileInfo(QString::fromUtf8(data)).completeBaseName();
+		}
+		OBSSource input = SwitcherInputSelect::CreateInputScene(type, QT_TO_UTF8(name),
+									obs_source_get_display_name(type), settings);
+		if (input) {
+			main->SetCurrentScene(input);
+		}
+		return;
+	}
+
 	std::string sourceName = GenerateSourceName(QT_TO_UTF8(name));
 	OBSSourceAutoRelease source = obs_source_create(type, sourceName.c_str(), settings, nullptr);
 	if (source) {
