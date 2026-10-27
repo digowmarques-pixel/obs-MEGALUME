@@ -2188,6 +2188,31 @@ OBSBasicFilters #widget_2 QPushButton {
     padding: var(--padding_large) var(--padding_wide);
 }
 
+#switcherMultiCorderButton {
+    background-color: var(--red4);
+    color: var(--switcher_title_text);
+    border: 1px solid var(--red4);
+    border-radius: var(--switcher_radius_large);
+    padding: var(--padding_large) var(--padding_wide);
+}
+
+#switcherMultiCorderButton:hover {
+    background-color: var(--red3);
+    border-color: var(--red3);
+}
+
+#switcherMultiCorderStart {
+    font-size: var(--font_large);
+    font-weight: bold;
+    border-radius: var(--switcher_radius_large);
+}
+
+#switcherMultiCorderStart.state-active {
+    background: var(--switcher_onair);
+    border-color: var(--switcher_onair);
+    color: var(--switcher_title_text);
+}
+
 #switcherSettingsButton {
     background-color: var(--switcher_button_bg);
     color: var(--text);

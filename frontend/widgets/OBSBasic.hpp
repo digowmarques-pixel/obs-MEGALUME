@@ -55,6 +55,7 @@ class SwitcherInputGrid;
 class SwitcherInputTabs;
 class SwitcherMultistream;
 class SwitcherBusMeters;
+class SwitcherMultiCorder;
 class MediaControls;
 class OBSBasicFilters;
 class OBSBasicInteraction;
@@ -1492,6 +1493,7 @@ private:
 	QPointer<MediaControls> switcherProgramControls;
 	QPointer<QPushButton> switcherColumnOverlays[8];
 	QPointer<SwitcherBusMeters> switcherBusMeters;
+	QPointer<SwitcherMultiCorder> switcherMultiCorder;
 	QPointer<QObject> switcherDoubleClickWatcher;
 	QPointer<QLabel> switcherAlert;
 	qint64 switcherQuietSince = 0;
@@ -1526,6 +1528,7 @@ private:
 	void EnsureSwitcherMediaBars();
 	void UpdateSwitcherMediaBars();
 	void OpenSwitcherSettings();
+	void OpenSwitcherMultiCorder();
 	void UpdateSwitcherAlerts();
 	void RemoveSwitcherInput(OBSSource scene);
 	void ClearSwitcherOverlays();

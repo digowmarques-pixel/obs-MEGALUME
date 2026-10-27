@@ -31,6 +31,7 @@
 #include <dialogs/NameDialog.hpp>
 #include <dialogs/SwitcherInputSelect.hpp>
 #include <dialogs/SwitcherInputSettings.hpp>
+#include <dialogs/SwitcherMultiCorder.hpp>
 #include <dialogs/SwitcherSettings.hpp>
 #include <dialogs/SwitcherStreamSettings.hpp>
 #include <utility/BasicOutputHandler.hpp>
@@ -152,6 +153,8 @@ void OBSBasic::InitSwitcherMode()
 	/* New audio sources go to the default buses from the switcher settings */
 	switcherSourceCreateSignal.Connect(obs_get_signal_handler(), "source_create", OBSBasic::SwitcherSourceCreated,
 					   this);
+
+	switcherMultiCorder = new SwitcherMultiCorder(this);
 
 	/* Extra stream destinations share the main stream's encoders */
 	switcherMultistream = new SwitcherMultistream(this, [this]() -> OBSOutputAutoRelease {
@@ -393,6 +396,13 @@ void OBSBasic::CreateSwitcherBar()
 	destinations->setToolButtonStyle(Qt::ToolButtonTextOnly);
 	connect(destinations, &QToolButton::clicked, this, &OBSBasic::OpenSwitcherStreamSettings);
 	barLayout->addWidget(destinations);
+
+	QToolButton *multiCorder = new QToolButton(barContents);
+	multiCorder->setObjectName("switcherMultiCorderButton");
+	multiCorder->setText(QTStr("Switcher.MultiCorder.Button"));
+	multiCorder->setToolButtonStyle(Qt::ToolButtonTextOnly);
+	connect(multiCorder, &QToolButton::clicked, this, &OBSBasic::OpenSwitcherMultiCorder);
+	barLayout->addWidget(multiCorder);
 
 	QToolButton *settings = new QToolButton(barContents);
 	settings->setObjectName("switcherSettingsButton");
@@ -1097,4 +1107,15 @@ void OBSBasic::UpdateSwitcherAlerts()
 
 	switcherAlert->setText(alerts.join("  \u2022  "));
 	switcherAlert->setVisible(!alerts.isEmpty());
+}
+
+void OBSBasic::OpenSwitcherMultiCorder()
+{
+	if (SwitcherMultiCorderWindow *open = findChild<SwitcherMultiCorderWindow *>()) {
+		open->raise();
+		open->activateWindow();
+		return;
+	}
+
+	(new SwitcherMultiCorderWindow(this, switcherMultiCorder))->show();
 }
