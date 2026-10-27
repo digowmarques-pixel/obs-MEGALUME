@@ -1543,6 +1543,8 @@ private:
 	void OpenSwitcherOutputs();
 	void UpdateSwitcherAlerts();
 	void SwitcherAutomationTick();
+	void OfferVirtualCamInstall();
+	void SwitcherInputRemoved(OBSSource source);
 	/* Switcher hotkeys, set in Settings > Hotkeys like any other */
 	std::map<obs_hotkey_id, std::function<void()>> switcherHotkeys;
 	void CreateSwitcherHotkeys();

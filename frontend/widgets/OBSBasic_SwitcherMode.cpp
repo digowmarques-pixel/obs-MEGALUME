@@ -34,6 +34,7 @@
 #include <dialogs/SwitcherMultiCorder.hpp>
 #include <dialogs/SwitcherOutputs.hpp>
 #include <dialogs/SwitcherReplay.hpp>
+#include <utility/SwitcherVirtualCam.hpp>
 #include <components/SwitcherBusOutputs.hpp>
 #include <components/SwitcherAutomation.hpp>
 #include <dialogs/SwitcherSettings.hpp>
@@ -442,7 +443,6 @@ void OBSBasic::CreateSwitcherBar()
 		bool active = VirtualCamActive();
 		QSignalBlocker blocker(vcam);
 		vcam->setChecked(active);
-		vcam->setEnabled(VCamEnabled());
 		vcam->setText(QTStr(active ? "Switcher.VirtualCam.On" : "Switcher.VirtualCam.Button"));
 		setClasses(vcam, active ? "state-active" : "");
 		vcam->style()->unpolish(vcam);
@@ -450,7 +450,11 @@ void OBSBasic::CreateSwitcherBar()
 	};
 	connect(vcam, &QToolButton::clicked, this, [this, updateVcam]() {
 		/* The state follows the virtual camera, not the click */
-		VirtualCamActionTriggered();
+		if (VCamEnabled()) {
+			VirtualCamActionTriggered();
+		} else {
+			OfferVirtualCamInstall();
+		}
 		updateVcam();
 	});
 	connect(this, &OBSBasic::VirtualCamStarted, vcam, updateVcam);
@@ -1585,4 +1589,69 @@ void OBSBasic::OpenSwitcherReplay()
 		return;
 	}
 	(new SwitcherReplay(this))->show();
+}
+
+void OBSBasic::SwitcherInputRemoved(OBSSource source)
+{
+	if (!IsPreviewProgramMode() || !obs_scene_from_source(source)) {
+		return;
+	}
+
+	/* Removing a scene only takes it out of the list: Program, overlays
+	 * and recorders still hold it and keep it on air with no tile left to
+	 * take it off, so they let go of it here */
+	if (GetProgramSource() == source) {
+		OBSSource preview = GetCurrentSceneSource();
+		if (preview && preview != source) {
+			blog(LOG_INFO, "Switcher: '%s' removed while on air, cutting to '%s'",
+			     obs_source_get_name(source), obs_source_get_name(preview));
+			TransitionToScene(preview, true);
+		} else {
+			blog(LOG_INFO, "Switcher: '%s' removed while on air, Program goes black",
+			     obs_source_get_name(source));
+			obs_transition_set(GetCurrentTransition(), nullptr);
+			programScene = OBSWeakSource();
+			lastProgramScene = OBSWeakSource();
+		}
+		UpdatePreviewProgramIndicators();
+	}
+
+	for (int i = 0; i < SWITCHER_OVERLAY_COUNT; i++) {
+		if (obs_weak_source_references_source(switcherOverlayScenes[i], source)) {
+			ToggleSwitcherOverlay(source, i);
+		}
+	}
+
+	if (switcherMultiCorder) {
+		switcherMultiCorder->Stop(obs_source_get_uuid(source));
+	}
+
+	switcherMediaStates.erase(obs_source_get_uuid(source));
+	if (OBSGetStrongRef(switcherPreviousProgram) == source) {
+		switcherPreviousProgram = OBSWeakSource();
+	}
+	if (OBSGetStrongRef(switcherLastProgram) == source) {
+		switcherLastProgram = OBSWeakSource();
+	}
+}
+
+void OBSBasic::OfferVirtualCamInstall()
+{
+#ifdef _WIN32
+	QMessageBox::StandardButton answer = OBSMessageBox::question(this, QTStr("Switcher.VirtualCam.Button"),
+								     QTStr("Switcher.VirtualCam.Install"));
+	if (answer != QMessageBox::Yes) {
+		return;
+	}
+
+	if (SwitcherInstallVirtualCam(this)) {
+		OBSMessageBox::information(this, QTStr("Switcher.VirtualCam.Button"),
+					   QTStr("Switcher.VirtualCam.Installed"));
+	} else {
+		OBSMessageBox::warning(this, QTStr("Switcher.VirtualCam.Button"),
+				       QTStr("Switcher.VirtualCam.InstallFailed"));
+	}
+#else
+	OBSMessageBox::information(this, QTStr("Switcher.VirtualCam.Button"), QTStr("Switcher.VirtualCam.Unavailable"));
+#endif
 }

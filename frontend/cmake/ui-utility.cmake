@@ -6,6 +6,8 @@ target_sources(
     utility/BaseLexer.hpp
     utility/BasicOutputHandler.cpp
     utility/BasicOutputHandler.hpp
+    utility/SwitcherVirtualCam.cpp
+    utility/SwitcherVirtualCam.hpp
     utility/CrashHandler.cpp
     utility/CrashHandler.hpp
     utility/FFmpegCodec.cpp

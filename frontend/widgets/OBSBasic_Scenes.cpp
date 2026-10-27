@@ -203,6 +203,12 @@ void OBSBasic::RemoveScene(OBSSource source)
 	if (foundItem) {
 		OnEvent(OBS_FRONTEND_EVENT_SCENE_LIST_CHANGED);
 	}
+
+	/* A removed scene can still be on air; take it off (not while a whole
+	 * collection is being cleared) */
+	if (!disableSaving) {
+		SwitcherInputRemoved(source);
+	}
 }
 
 static bool select_one(obs_scene_t * /* scene */, obs_sceneitem_t *item, void *param)
