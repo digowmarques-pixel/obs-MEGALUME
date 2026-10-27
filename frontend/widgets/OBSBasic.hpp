@@ -1491,6 +1491,12 @@ private:
 	QPointer<SwitcherInputTabs> switcherInputTabs;
 	QPointer<SwitcherMultistream> switcherMultistream;
 	QPointer<QObject> switcherResizeWatcher;
+	bool switcherWidthsPending = false;
+	bool switcherWidthsHeld = false;
+	QSize switcherWidthsHeldSize;
+	qint64 switcherWidthsWindowStart = 0;
+	int switcherWidthsChanges = 0;
+	void ApplySwitcherDisplayWidths();
 	/* Media transport under Preview and Program */
 	QPointer<QFrame> switcherPreviewMedia;
 	QPointer<QFrame> switcherProgramMedia;

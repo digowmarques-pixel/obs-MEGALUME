@@ -252,7 +252,11 @@ void OBSBasic::SetPreviewProgramMode(bool enabled)
 		ui->previewLayout->addWidget(programWidget);
 		ui->previewLayout->setAlignment(programOptions, Qt::AlignCenter);
 
-		sizeObserver = new PreviewProgramSizeObserver(ui->preview, program, this);
+		/* Switcher Mode sizes the displays itself; two size keepers on the
+		 * same widgets undo each other forever */
+		if (!switcherMode) {
+			sizeObserver = new PreviewProgramSizeObserver(ui->preview, program, this);
+		}
 
 		OnEvent(OBS_FRONTEND_EVENT_STUDIO_MODE_ENABLED);
 
@@ -272,7 +276,9 @@ void OBSBasic::SetPreviewProgramMode(bool enabled)
 		delete program;
 		delete programLabel;
 		delete programWidget;
-		sizeObserver->deleteLater();
+		if (sizeObserver) {
+			sizeObserver->deleteLater();
+		}
 
 		if (lastScene) {
 			OBSSource actualLastScene = OBSGetStrongRef(lastScene);

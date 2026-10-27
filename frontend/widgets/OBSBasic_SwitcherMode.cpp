@@ -240,6 +240,10 @@ void OBSBasic::SetSwitcherMode(bool enable, bool applyLayout)
 	ui->transitionsDock->toggleViewAction()->setEnabled(!enable);
 
 	if (enable) {
+		/* Studio Mode's own size keeper would fight the switcher's widths;
+		 * deleting it gives the containers their original limits back */
+		delete sizeObserver;
+
 		CreateSwitcherBar();
 		CreateSwitcherInputGrid();
 		CreateSwitcherBusMeters();
@@ -305,6 +309,11 @@ void OBSBasic::SetSwitcherMode(bool enable, bool applyLayout)
 		delete switcherResizeWatcher;
 		delete switcherDoubleClickWatcher;
 		UpdateSwitcherDisplayWidths();
+
+		/* Plain Studio Mode keeps Preview and Program the same size again */
+		if (IsPreviewProgramMode() && program && !sizeObserver) {
+			sizeObserver = new PreviewProgramSizeObserver(ui->preview, program, this);
+		}
 
 		delete switcherPreviewMedia;
 		delete switcherProgramMedia;
@@ -1038,13 +1047,76 @@ void OBSBasic::UpdateSwitcherDisplayWidths()
 		return;
 	}
 
-	/* Width only depends on height, so this settles after one pass */
-	int previewExtra = ui->previewContainer->width() - ui->preview->width();
-	ui->previewContainer->setMaximumWidth(CanvasFitWidth(ui->preview) + previewExtra);
+	/* Resizes arrive in bursts; work out the widths once they settle */
+	if (switcherWidthsPending) {
+		return;
+	}
+	switcherWidthsPending = true;
+	QTimer::singleShot(0, this, &OBSBasic::ApplySwitcherDisplayWidths);
+}
 
-	if (programWidget && program) {
-		int programExtra = programWidget->width() - program->width();
-		programWidget->setMaximumWidth(CanvasFitWidth(program) + programExtra);
+void OBSBasic::ApplySwitcherDisplayWidths()
+{
+	switcherWidthsPending = false;
+	if (!switcherMode) {
+		return;
+	}
+
+	/* Widths follow the displays' heights. If anything makes a height
+	 * depend on a width again, the two could chase each other forever,
+	 * resizing (and blanking) the displays many times a second; after a
+	 * burst of changes, hold the widths until the window itself changes */
+	qint64 now = QDateTime::currentMSecsSinceEpoch();
+	if (now - switcherWidthsWindowStart > 1000) {
+		switcherWidthsWindowStart = now;
+		switcherWidthsChanges = 0;
+	}
+	if (switcherWidthsHeld) {
+		if (size() == switcherWidthsHeldSize) {
+			return;
+		}
+		switcherWidthsHeld = false;
+		switcherWidthsChanges = 0;
+	}
+
+	auto want = [](QWidget *container, QWidget *display) {
+		return CanvasFitWidth(display) + container->width() - display->width();
+	};
+	auto apply = [](QWidget *container, int width) {
+		/* A pixel or two is rounding, not a new size */
+		if (std::abs(container->maximumWidth() - width) <= 2) {
+			return false;
+		}
+		container->setMaximumWidth(width);
+		return true;
+	};
+
+	int previewWant = want(ui->previewContainer, ui->preview);
+	int programWant = programWidget && program ? want(programWidget, program) : 0;
+
+	/* When both cannot have their full size, they share the row evenly
+	 * instead of whichever the layout favours taking it all */
+	if (programWant) {
+		QMargins margins = ui->previewLayout->contentsMargins();
+		int spacing = std::max(ui->previewLayout->spacing(), 0);
+		int row = ui->previewLayout->geometry().width() - margins.left() - margins.right();
+		int column = programOptions ? programOptions->width() + spacing * 2 : 0;
+		int share = (row - column) / 2;
+		if (share > 0 && previewWant + programWant > share * 2) {
+			previewWant = std::min(previewWant, share);
+			programWant = std::min(programWant, share);
+		}
+	}
+
+	bool changed = apply(ui->previewContainer, previewWant);
+	if (programWant) {
+		changed = apply(programWidget, programWant) || changed;
+	}
+
+	if (changed && ++switcherWidthsChanges > 8) {
+		blog(LOG_WARNING, "Switcher: Preview/Program widths kept changing, holding them");
+		switcherWidthsHeld = true;
+		switcherWidthsHeldSize = size();
 	}
 }
 
@@ -1061,6 +1133,10 @@ void OBSBasic::EnsureSwitcherMediaBars()
 		controls = new MediaControls(bar);
 		controls->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
 		barLayout->addWidget(controls);
+
+		/* Nor change height with width: the displays' heights set their
+		 * widths, so a bar growing taller when narrower would feed back */
+		bar->setFixedHeight(bar->sizeHint().height());
 		return bar;
 	};
 
