@@ -54,6 +54,7 @@ class OBSBasicControls;
 class SwitcherInputGrid;
 class SwitcherInputTabs;
 class SwitcherMultistream;
+class MediaControls;
 class OBSBasicFilters;
 class OBSBasicInteraction;
 class OBSBasicProperties;
@@ -1483,6 +1484,11 @@ private:
 	QPointer<SwitcherInputTabs> switcherInputTabs;
 	QPointer<SwitcherMultistream> switcherMultistream;
 	QPointer<QObject> switcherResizeWatcher;
+	/* Media transport under Preview and Program */
+	QPointer<QFrame> switcherPreviewMedia;
+	QPointer<QFrame> switcherProgramMedia;
+	QPointer<MediaControls> switcherPreviewControls;
+	QPointer<MediaControls> switcherProgramControls;
 	bool switcherInputsRefreshQueued = false;
 	QPointer<QWidget> switcherMixerContainer;
 	QPointer<QWidget> switcherMixer;
@@ -1509,6 +1515,8 @@ private:
 	void OpenSwitcherInputSettings(OBSSource scene);
 	void OpenSwitcherStreamSettings();
 	void UpdateSwitcherDisplayWidths();
+	void EnsureSwitcherMediaBars();
+	void UpdateSwitcherMediaBars();
 	void ClearSwitcherOverlays();
 	void CreateSwitcherBusMeters();
 	void DestroySwitcherBusMeters();

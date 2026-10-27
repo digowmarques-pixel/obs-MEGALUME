@@ -2118,6 +2118,10 @@ OBSBasicFilters #widget_2 QPushButton {
     font-size: var(--font_small);
 }
 
+#switcherMediaBar {
+    background: transparent;
+}
+
 #switcherClockFrame {
     background: var(--switcher_clock_bg);
     border: 1px solid var(--switcher_clock_border);

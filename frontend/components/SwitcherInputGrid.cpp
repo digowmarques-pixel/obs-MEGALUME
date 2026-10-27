@@ -230,6 +230,20 @@ static void CollectSources(obs_scene_t *scene, std::vector<obs_source_t *> &medi
 	obs_scene_enum_items(scene, CollectItem, &ctx);
 }
 
+OBSSource SwitcherFindMediaSource(obs_source_t *scene)
+{
+	obs_scene_t *sceneData = obs_scene_from_source(scene);
+	if (!sceneData) {
+		return nullptr;
+	}
+
+	std::vector<obs_source_t *> media;
+	std::vector<obs_source_t *> audio;
+	CollectSources(sceneData, media, audio, 0);
+
+	return media.empty() ? nullptr : OBSSource(media.front());
+}
+
 static const char *LoopSettingName(obs_source_t *source)
 {
 	const char *id = obs_source_get_unversioned_id(source);

@@ -24,6 +24,7 @@
 #include "OBSBasicControls.hpp"
 #include "OBSProjector.hpp"
 
+#include <components/MediaControls.hpp>
 #include <components/SceneTree.hpp>
 #include <components/SwitcherBusMeters.hpp>
 #include <components/SwitcherInputGrid.hpp>
@@ -237,6 +238,9 @@ void OBSBasic::SetSwitcherMode(bool enable, bool applyLayout)
 
 		delete switcherResizeWatcher;
 		UpdateSwitcherDisplayWidths();
+
+		delete switcherPreviewMedia;
+		delete switcherProgramMedia;
 
 		ui->previewXContainer->setVisible(true);
 		ui->previewYScrollBar->setVisible(true);
@@ -658,6 +662,8 @@ void OBSBasic::UpdateSwitcherInputStates()
 	}
 
 	switcherInputGrid->SetOverlayStates(overlays);
+
+	UpdateSwitcherMediaBars();
 }
 
 void OBSBasic::ToggleSwitcherOverlay(OBSSource source, int index)
@@ -810,4 +816,61 @@ void OBSBasic::UpdateSwitcherDisplayWidths()
 		int programExtra = programWidget->width() - program->width();
 		programWidget->setMaximumWidth(CanvasFitWidth(program) + programExtra);
 	}
+}
+
+void OBSBasic::EnsureSwitcherMediaBars()
+{
+	auto makeBar = [](QPointer<MediaControls> &controls) {
+		QFrame *bar = new QFrame();
+		bar->setObjectName("switcherMediaBar");
+
+		QHBoxLayout *barLayout = new QHBoxLayout(bar);
+		barLayout->setContentsMargins(10, 2, 10, 2);
+
+		/* Never ask for width, so the bar cannot reshape the displays */
+		controls = new MediaControls(bar);
+		controls->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+		barLayout->addWidget(controls);
+		return bar;
+	};
+
+	if (!switcherPreviewMedia) {
+		switcherPreviewMedia = makeBar(switcherPreviewControls);
+		switcherPreviewMedia->setVisible(false);
+		ui->previewTextLayout->addWidget(switcherPreviewMedia);
+	}
+
+	/* The program side is rebuilt with Studio Mode, so it is added once
+	 * its layout exists */
+	if (!switcherProgramMedia && programLayout) {
+		switcherProgramMedia = makeBar(switcherProgramControls);
+		switcherProgramMedia->setVisible(false);
+		programLayout->addWidget(switcherProgramMedia);
+	}
+}
+
+void OBSBasic::UpdateSwitcherMediaBars()
+{
+	if (!switcherMode) {
+		return;
+	}
+
+	EnsureSwitcherMediaBars();
+
+	/* Show the transport only for inputs that hold a video or audio file,
+	 * so it can be checked in Preview before it goes to air */
+	auto update = [](QFrame *bar, MediaControls *controls, obs_source_t *scene) {
+		if (!bar || !controls) {
+			return;
+		}
+
+		OBSSource media = scene ? SwitcherFindMediaSource(scene) : nullptr;
+		if (controls->GetSource() != media) {
+			controls->SetSource(media);
+		}
+		bar->setVisible(media != nullptr);
+	};
+
+	update(switcherPreviewMedia, switcherPreviewControls, GetCurrentSceneSource());
+	update(switcherProgramMedia, switcherProgramControls, IsPreviewProgramMode() ? GetProgramSource() : nullptr);
 }

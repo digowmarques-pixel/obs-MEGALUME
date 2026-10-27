@@ -43,6 +43,9 @@ void SwitcherSetClickAction(obs_source_t *scene, int action);
 int SwitcherGetGoAction(obs_source_t *scene);
 void SwitcherSetGoAction(obs_source_t *scene, int action);
 
+/* First media source (video, audio file, playlist) inside an input */
+OBSSource SwitcherFindMediaSource(obs_source_t *scene);
+
 /* Draws a source scaled to fit, for thumbnails and previews */
 void SwitcherRenderSourceFit(obs_source_t *source, uint32_t cx, uint32_t cy);
 
