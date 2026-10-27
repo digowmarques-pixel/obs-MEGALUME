@@ -2181,7 +2181,8 @@ OBSBasicFilters #widget_2 QPushButton {
 
 #switcherAddInput,
 #switcherDestinations,
-#switcherExternalButton {
+#switcherExternalButton,
+#switcherReplayButton {
     background-color: var(--switcher_button_bg);
     color: var(--text);
     border: 1px solid var(--switcher_button_bg);
@@ -2241,7 +2242,8 @@ OBSBasicFilters #widget_2 QPushButton {
 
 #switcherAddInput:hover,
 #switcherDestinations:hover,
-#switcherExternalButton:hover {
+#switcherExternalButton:hover,
+#switcherReplayButton:hover {
     background-color: var(--switcher_button_hover);
     border-color: var(--switcher_button_hover);
 }

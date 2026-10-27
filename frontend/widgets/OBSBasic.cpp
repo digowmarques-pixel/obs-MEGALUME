@@ -2070,6 +2070,10 @@ void OBSBasic::OnEvent(enum obs_frontend_event event)
 		ReloadSwitcherBusOutputs();
 	}
 
+	if (event == OBS_FRONTEND_EVENT_REPLAY_BUFFER_SAVED) {
+		SwitcherReplaySaved();
+	}
+
 	if (switcherInputGrid) {
 		switch (event) {
 		case OBS_FRONTEND_EVENT_SCENE_CHANGED:

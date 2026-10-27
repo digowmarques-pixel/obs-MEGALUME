@@ -33,6 +33,7 @@
 #include <dialogs/SwitcherInputSettings.hpp>
 #include <dialogs/SwitcherMultiCorder.hpp>
 #include <dialogs/SwitcherOutputs.hpp>
+#include <dialogs/SwitcherReplay.hpp>
 #include <components/SwitcherBusOutputs.hpp>
 #include <components/SwitcherAutomation.hpp>
 #include <dialogs/SwitcherSettings.hpp>
@@ -416,6 +417,13 @@ void OBSBasic::CreateSwitcherBar()
 	multiCorder->setToolButtonStyle(Qt::ToolButtonTextOnly);
 	connect(multiCorder, &QToolButton::clicked, this, &OBSBasic::OpenSwitcherMultiCorder);
 	barLayout->addWidget(multiCorder);
+
+	QToolButton *replay = new QToolButton(barContents);
+	replay->setObjectName("switcherReplayButton");
+	replay->setText(QTStr("Switcher.Replay.Button"));
+	replay->setToolButtonStyle(Qt::ToolButtonTextOnly);
+	connect(replay, &QToolButton::clicked, this, &OBSBasic::OpenSwitcherReplay);
+	barLayout->addWidget(replay);
 
 	/* External outputs: virtual camera and full screen outputs */
 	QToolButton *external = new QToolButton(barContents);
@@ -1336,6 +1344,11 @@ void OBSBasic::CreateSwitcherHotkeys()
 		}
 	});
 
+	add("Megalume.ReplayPreview", QTStr("Switcher.Hotkey.ReplayPreview"),
+	    [this]() { SwitcherReplayCapture(SwitcherReplayTarget::Preview); });
+	add("Megalume.ReplayAir", QTStr("Switcher.Hotkey.ReplayAir"),
+	    [this]() { SwitcherReplayCapture(SwitcherReplayTarget::Program); });
+
 	for (int i = 0; i < SWITCHER_OVERLAY_COUNT; i++) {
 		add(QString("Megalume.Overlay%1").arg(i + 1), QTStr("Switcher.Hotkey.Overlay").arg(i + 1), [this, i]() {
 			OBSSource current = OBSGetStrongRef(switcherOverlayScenes[i]);
@@ -1378,4 +1391,139 @@ void OBSBasic::RunSwitcherHotkey(obs_hotkey_id id)
 	if (it != switcherHotkeys.end()) {
 		it->second();
 	}
+}
+
+bool OBSBasic::EnsureSwitcherReplayBuffer()
+{
+	if (outputHandler && outputHandler->ReplayBufferActive()) {
+		return true;
+	}
+
+	/* The replay buffer exists only when it is enabled in the output
+	 * settings; turning it on rebuilds the outputs, which needs them idle */
+	if (!outputHandler || !outputHandler->replayBuffer) {
+		if (Active()) {
+			OBSMessageBox::warning(this, QTStr("Switcher.Replay.Title"),
+					       QTStr("Switcher.Replay.NeedsIdle"));
+			return false;
+		}
+
+		const char *mode = config_get_string(activeConfiguration, "Output", "Mode");
+		const char *section = astrcmpi(mode, "Advanced") == 0 ? "AdvOut" : "SimpleOutput";
+		config_set_bool(activeConfiguration, section, "RecRB", true);
+		activeConfiguration.SaveSafe("tmp");
+		ResetOutputs();
+	}
+
+	StartReplayBuffer();
+	return outputHandler && outputHandler->ReplayBufferActive();
+}
+
+void OBSBasic::SwitcherReplayCapture(SwitcherReplayTarget target)
+{
+	if (!outputHandler || !outputHandler->ReplayBufferActive()) {
+		/* The buffer only holds what happened after it started */
+		if (EnsureSwitcherReplayBuffer()) {
+			OBSMessageBox::information(this, QTStr("Switcher.Replay.Title"),
+						   QTStr("Switcher.Replay.JustStarted"));
+		}
+		return;
+	}
+
+	switcherReplayPending = target;
+	ReplayBufferSave();
+}
+
+void OBSBasic::SwitcherReplaySaved()
+{
+	if (lastReplay.empty()) {
+		return;
+	}
+
+	QString path = QT_UTF8(lastReplay.c_str());
+	if (!switcherReplayClips.contains(path)) {
+		switcherReplayClips.prepend(path);
+	}
+
+	SwitcherReplayTarget target = switcherReplayPending;
+	switcherReplayPending = SwitcherReplayTarget::None;
+	if (target != SwitcherReplayTarget::None) {
+		SwitcherReplayLoad(path, target);
+	}
+}
+
+OBSSource OBSBasic::SwitcherReplayInput()
+{
+	OBSSource found;
+	obs_enum_scenes(
+		[](void *param, obs_source_t *scene) {
+			OBSDataAutoRelease settings = obs_source_get_private_settings(scene);
+			if (obs_data_get_bool(settings, "switcher_replay")) {
+				*static_cast<OBSSource *>(param) = scene;
+				return false;
+			}
+			return true;
+		},
+		&found);
+	if (found) {
+		return found;
+	}
+
+	OBSDataAutoRelease settings = obs_data_create();
+	obs_data_set_bool(settings, "is_local_file", true);
+	obs_data_set_bool(settings, "clear_on_media_end", false);
+	OBSSource scene = SwitcherInputSelect::CreateInputScene("ffmpeg_source", "REPLAY", "Replay", settings);
+	if (scene) {
+		OBSDataAutoRelease privateSettings = obs_source_get_private_settings(scene);
+		obs_data_set_bool(privateSettings, "switcher_replay", true);
+	}
+	return scene;
+}
+
+void OBSBasic::SwitcherReplayLoad(const QString &path, SwitcherReplayTarget target)
+{
+	OBSSource scene = SwitcherReplayInput();
+	OBSSource media = SwitcherFindMediaSource(scene);
+	if (!media) {
+		return;
+	}
+
+	config_t *config = App()->GetUserConfig();
+	int speed = config_has_user_value(config, "BasicWindow", "SwitcherReplaySpeed")
+			    ? (int)config_get_int(config, "BasicWindow", "SwitcherReplaySpeed")
+			    : 100;
+	bool returnAfter = !config_has_user_value(config, "BasicWindow", "SwitcherReplayReturn") ||
+			   config_get_bool(config, "BasicWindow", "SwitcherReplayReturn");
+
+	/* Keeping the last frame avoids the first-frame preload, see
+	 * SwitcherPlayListItem */
+	OBSDataAutoRelease settings = obs_data_create();
+	obs_data_set_bool(settings, "is_local_file", true);
+	obs_data_set_bool(settings, "clear_on_media_end", false);
+	obs_data_set_bool(settings, "looping", false);
+	obs_data_set_int(settings, "speed_percent", speed);
+	obs_data_set_string(settings, "local_file", QT_TO_UTF8(path));
+	obs_source_update(media, settings);
+
+	SwitcherEndTrigger trigger;
+	trigger.action = returnAfter ? SWITCHER_END_PREVIOUS : SWITCHER_END_NOTHING;
+	SwitcherSetEndTrigger(scene, trigger);
+
+	blog(LOG_INFO, "Switcher replay: '%s' at %d%%", QT_TO_UTF8(path), speed);
+
+	if (target == SwitcherReplayTarget::Program) {
+		TransitionToScene(scene);
+	} else {
+		SetCurrentScene(scene);
+	}
+}
+
+void OBSBasic::OpenSwitcherReplay()
+{
+	if (SwitcherReplay *open = findChild<SwitcherReplay *>()) {
+		open->raise();
+		open->activateWindow();
+		return;
+	}
+	(new SwitcherReplay(this))->show();
 }

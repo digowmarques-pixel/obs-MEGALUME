@@ -222,6 +222,7 @@ class OBSBasic : public OBSMainWindow {
 	friend class OBSBasicSourceSelect;
 	friend class OBSBasicSettings;
 	friend class SwitcherOutputs;
+	friend class SwitcherReplay;
 	friend class Auth;
 	friend class AutoConfig;
 	friend class AutoConfigStreamPage;
@@ -1548,6 +1549,17 @@ private:
 	void ClearSwitcherHotkeys();
 	void RunSwitcherHotkey(obs_hotkey_id id);
 	OBSSource SwitcherInputAt(int index);
+
+	/* Replay: clips saved from the replay buffer play in the REPLAY input */
+	enum class SwitcherReplayTarget { None, Preview, Program };
+	SwitcherReplayTarget switcherReplayPending = SwitcherReplayTarget::None;
+	QStringList switcherReplayClips;
+	bool EnsureSwitcherReplayBuffer();
+	void SwitcherReplayCapture(SwitcherReplayTarget target);
+	void SwitcherReplaySaved();
+	OBSSource SwitcherReplayInput();
+	void SwitcherReplayLoad(const QString &path, SwitcherReplayTarget target);
+	void OpenSwitcherReplay();
 	void SwitcherRunEndTrigger(obs_source_t *scene);
 	void RemoveSwitcherInput(OBSSource scene);
 	void ClearSwitcherOverlays();
