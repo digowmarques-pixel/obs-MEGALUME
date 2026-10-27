@@ -312,6 +312,8 @@ void OBSBasic::CreateHotkeys()
 	sourceScreenshotHotkey = obs_hotkey_register_frontend("OBSBasic.SelectedSourceScreenshot",
 							      Str("Screenshot.SourceHotkey"), screenshotSource, this);
 	LoadHotkey(sourceScreenshotHotkey, "OBSBasic.SelectedSourceScreenshot");
+
+	CreateSwitcherHotkeys();
 }
 
 void OBSBasic::ClearHotkeys()
@@ -332,6 +334,8 @@ void OBSBasic::ClearHotkeys()
 	obs_hotkey_unregister(statsHotkey);
 	obs_hotkey_unregister(screenshotHotkey);
 	obs_hotkey_unregister(sourceScreenshotHotkey);
+
+	ClearSwitcherHotkeys();
 }
 
 void OBSBasic::ResetStatsHotkey()

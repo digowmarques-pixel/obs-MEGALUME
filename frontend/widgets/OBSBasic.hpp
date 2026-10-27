@@ -44,6 +44,8 @@
 #include <QSystemTrayIcon>
 
 #include <deque>
+#include <functional>
+#include <map>
 
 extern volatile bool recording_paused;
 
@@ -1540,6 +1542,12 @@ private:
 	void OpenSwitcherOutputs();
 	void UpdateSwitcherAlerts();
 	void SwitcherAutomationTick();
+	/* Switcher hotkeys, set in Settings > Hotkeys like any other */
+	std::map<obs_hotkey_id, std::function<void()>> switcherHotkeys;
+	void CreateSwitcherHotkeys();
+	void ClearSwitcherHotkeys();
+	void RunSwitcherHotkey(obs_hotkey_id id);
+	OBSSource SwitcherInputAt(int index);
 	void SwitcherRunEndTrigger(obs_source_t *scene);
 	void RemoveSwitcherInput(OBSSource scene);
 	void ClearSwitcherOverlays();

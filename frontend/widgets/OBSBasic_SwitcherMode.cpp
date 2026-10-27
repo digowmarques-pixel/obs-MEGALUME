@@ -62,6 +62,8 @@
 /* Overlays use their own output channels, drawn on top of Program. Channels
  * 0-6 belong to OBS and low numbers are popular with plugins. */
 #define SWITCHER_OVERLAY_CHANNEL 40
+/* Inputs that get their own Preview, Cut and Play hotkeys */
+#define SWITCHER_HOTKEY_INPUTS 12
 
 namespace {
 
@@ -1272,5 +1274,108 @@ void OBSBasic::SwitcherRunEndTrigger(obs_source_t *scene)
 	TransitionToScene(target, trigger.cut);
 	if (trigger.cut) {
 		UpdatePreviewProgramIndicators();
+	}
+}
+
+OBSSource OBSBasic::SwitcherInputAt(int index)
+{
+	if (index < 0 || index >= ui->scenes->count()) {
+		return nullptr;
+	}
+	OBSScene scene = GetOBSRef<OBSScene>(ui->scenes->item(index));
+	return scene ? OBSSource(obs_scene_get_source(scene)) : nullptr;
+}
+
+void OBSBasic::CreateSwitcherHotkeys()
+{
+	auto add = [this](const QString &name, const QString &description, std::function<void()> action) {
+		auto pressed = [](void *data, obs_hotkey_id id, obs_hotkey_t *, bool down) {
+			if (down) {
+				OBSBasic *main = static_cast<OBSBasic *>(data);
+				QMetaObject::invokeMethod(
+					main, [main, id]() { main->RunSwitcherHotkey(id); }, Qt::QueuedConnection);
+			}
+		};
+
+		QByteArray nameUtf8 = name.toUtf8();
+		obs_hotkey_id id = obs_hotkey_register_frontend(nameUtf8.constData(), description.toUtf8().constData(),
+								pressed, this);
+		switcherHotkeys[id] = std::move(action);
+
+		const char *saved = config_get_string(activeConfiguration, "Hotkeys", nameUtf8.constData());
+		if (saved) {
+			OBSDataAutoRelease data = obs_data_create_from_json(saved);
+			OBSDataArrayAutoRelease bindings = obs_data_get_array(data, "bindings");
+			obs_hotkey_load(id, bindings);
+		}
+	};
+
+	auto cutTo = [this](OBSSource source) {
+		if (source) {
+			TransitionToScene(source, true);
+			UpdatePreviewProgramIndicators();
+		}
+	};
+
+	add("Megalume.Cut", QTStr("Switcher.Hotkey.Cut"), [this, cutTo]() {
+		if (IsPreviewProgramMode()) {
+			cutTo(GetCurrentSceneSource());
+		}
+	});
+
+	add("Megalume.PreviewPlayPause", QTStr("Switcher.Hotkey.PreviewPlayPause"), [this]() {
+		if (OBSSource media = SwitcherFindMediaSource(GetCurrentSceneSource())) {
+			obs_source_media_play_pause(media,
+						    obs_source_media_get_state(media) == OBS_MEDIA_STATE_PLAYING);
+		}
+	});
+
+	add("Megalume.ListNext", QTStr("Switcher.Hotkey.ListNext"), [this]() {
+		if (OBSSource program = GetProgramSource()) {
+			SwitcherAdvanceList(program);
+		}
+	});
+
+	for (int i = 0; i < SWITCHER_OVERLAY_COUNT; i++) {
+		add(QString("Megalume.Overlay%1").arg(i + 1), QTStr("Switcher.Hotkey.Overlay").arg(i + 1), [this, i]() {
+			OBSSource current = OBSGetStrongRef(switcherOverlayScenes[i]);
+			OBSSource target = current ? current : GetCurrentSceneSource();
+			if (target) {
+				ToggleSwitcherOverlay(target, i);
+			}
+		});
+	}
+
+	for (int i = 0; i < SWITCHER_HOTKEY_INPUTS; i++) {
+		add(QString("Megalume.PreviewInput%1").arg(i + 1), QTStr("Switcher.Hotkey.PreviewInput").arg(i + 1),
+		    [this, i]() {
+			    if (OBSSource source = SwitcherInputAt(i)) {
+				    SetCurrentScene(source);
+			    }
+		    });
+		add(QString("Megalume.CutInput%1").arg(i + 1), QTStr("Switcher.Hotkey.CutInput").arg(i + 1),
+		    [this, i, cutTo]() { cutTo(SwitcherInputAt(i)); });
+		add(QString("Megalume.PlayInput%1").arg(i + 1), QTStr("Switcher.Hotkey.PlayInput").arg(i + 1),
+		    [this, i]() {
+			    if (OBSSource source = SwitcherInputAt(i)) {
+				    TransitionToScene(source);
+			    }
+		    });
+	}
+}
+
+void OBSBasic::ClearSwitcherHotkeys()
+{
+	for (const auto &[id, action] : switcherHotkeys) {
+		obs_hotkey_unregister(id);
+	}
+	switcherHotkeys.clear();
+}
+
+void OBSBasic::RunSwitcherHotkey(obs_hotkey_id id)
+{
+	auto it = switcherHotkeys.find(id);
+	if (it != switcherHotkeys.end()) {
+		it->second();
 	}
 }
