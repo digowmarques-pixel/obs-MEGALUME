@@ -45,6 +45,8 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
+#include <functional>
 #include <string>
 
 #define SWITCHER_THEME_ID "com.obsproject.Yami.Megalume"
@@ -52,6 +54,49 @@
 /* Overlays use their own output channels, drawn on top of Program. Channels
  * 0-6 belong to OBS and low numbers are popular with plugins. */
 #define SWITCHER_OVERLAY_CHANNEL 40
+
+namespace {
+
+/* Calls back whenever a watched widget is resized */
+class SwitcherResizeWatcher : public QObject {
+	std::function<void()> callback;
+
+public:
+	SwitcherResizeWatcher(QObject *parent, std::function<void()> callback_)
+		: QObject(parent),
+		  callback(std::move(callback_))
+	{
+	}
+
+protected:
+	bool eventFilter(QObject *obj, QEvent *event) override
+	{
+		if (event->type() == QEvent::Resize) {
+			callback();
+		}
+		return QObject::eventFilter(obj, event);
+	}
+};
+
+/* Width a display needs to show the canvas edge to edge at its height */
+int CanvasFitWidth(QWidget *display)
+{
+	obs_video_info ovi;
+	if (!obs_get_video_info(&ovi) || !ovi.base_height) {
+		return QWIDGETSIZE_MAX;
+	}
+
+	/* The display keeps a margin for transform handles, in device pixels */
+	qreal edge = PREVIEW_EDGE_SIZE / display->devicePixelRatioF();
+	qreal height = display->height() - edge * 2;
+	if (height <= 0) {
+		return QWIDGETSIZE_MAX;
+	}
+
+	return int(std::ceil(height * ovi.base_width / ovi.base_height + edge * 2));
+}
+
+} // namespace
 
 void OBSBasic::InitSwitcherMode()
 {
@@ -167,6 +212,21 @@ void OBSBasic::SetSwitcherMode(bool enable, bool applyLayout)
 			setDockCornersVertical(false);
 		}
 
+		/* Preview and Program shrink to the video's width, so there are no
+		 * empty bars beside it */
+		switcherResizeWatcher = new SwitcherResizeWatcher(this, [this]() { UpdateSwitcherDisplayWidths(); });
+		ui->preview->installEventFilter(switcherResizeWatcher);
+		if (program) {
+			program->installEventFilter(switcherResizeWatcher);
+		}
+		QTimer::singleShot(0, this, &OBSBasic::UpdateSwitcherDisplayWidths);
+
+		/* The switcher preview always fits the window, without zoom
+		 * controls or scroll bars */
+		setPreviewScalingWindow();
+		ui->previewXContainer->setVisible(false);
+		ui->previewYScrollBar->setVisible(false);
+
 		if (!config_get_bool(App()->GetUserConfig(), "BasicWindow", "VerticalVolumeControl")) {
 			toggleMixerLayout();
 		}
@@ -174,6 +234,12 @@ void OBSBasic::SetSwitcherMode(bool enable, bool applyLayout)
 		DestroySwitcherBar();
 		DestroySwitcherInputGrid();
 		DestroySwitcherBusMeters();
+
+		delete switcherResizeWatcher;
+		UpdateSwitcherDisplayWidths();
+
+		ui->previewXContainer->setVisible(true);
+		ui->previewYScrollBar->setVisible(true);
 
 		if (applyLayout && !switcherPrevDockState.isEmpty()) {
 			restoreState(switcherPrevDockState);
@@ -319,6 +385,16 @@ void OBSBasic::ApplySwitcherProgramOptions()
 	if (!programOptions) {
 		return;
 	}
+
+	if (switcherResizeWatcher && program) {
+		program->installEventFilter(switcherResizeWatcher);
+		QTimer::singleShot(0, this, &OBSBasic::UpdateSwitcherDisplayWidths);
+	}
+
+	/* Studio Mode centers the column horizontally, which hands it spare
+	 * width; centered vertically only, the spare width goes to the
+	 * displays instead */
+	ui->previewLayout->setAlignment(programOptions, Qt::AlignVCenter);
 
 	programOptions->setObjectName("switcherTransitionColumn");
 	programOptions->setFixedWidth(190);
@@ -714,4 +790,24 @@ void OBSBasic::OpenSwitcherStreamSettings()
 	SwitcherStreamSettings *dialog = new SwitcherStreamSettings(this, switcherMultistream);
 	connect(dialog, &SwitcherStreamSettings::OpenMainStreamSettings, this, &OBSBasic::on_action_Settings_triggered);
 	dialog->show();
+}
+
+void OBSBasic::UpdateSwitcherDisplayWidths()
+{
+	if (!switcherMode) {
+		ui->previewContainer->setMaximumWidth(QWIDGETSIZE_MAX);
+		if (programWidget) {
+			programWidget->setMaximumWidth(QWIDGETSIZE_MAX);
+		}
+		return;
+	}
+
+	/* Width only depends on height, so this settles after one pass */
+	int previewExtra = ui->previewContainer->width() - ui->preview->width();
+	ui->previewContainer->setMaximumWidth(CanvasFitWidth(ui->preview) + previewExtra);
+
+	if (programWidget && program) {
+		int programExtra = programWidget->width() - program->width();
+		programWidget->setMaximumWidth(CanvasFitWidth(program) + programExtra);
+	}
 }

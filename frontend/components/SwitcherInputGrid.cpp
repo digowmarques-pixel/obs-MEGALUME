@@ -435,9 +435,6 @@ SwitcherInputTile::SwitcherInputTile(obs_source_t *source, QWidget *parent)
 	layout->addLayout(firstRow);
 	layout->addLayout(secondRow);
 
-	/* Keep the scene's sources running so the thumbnail stays live */
-	obs_source_inc_showing(source);
-
 	/* The meter animates quickly, the media and audio state can lag a bit */
 	QTimer *meterTimer = new QTimer(this);
 	connect(meterTimer, &QTimer::timeout, this, &SwitcherInputTile::UpdateMeter);
@@ -465,9 +462,23 @@ SwitcherInputTile::~SwitcherInputTile()
 	ClearAudioSources();
 
 	OBSSource source = GetSource();
-	if (source) {
+	if (source && showing) {
 		obs_source_dec_showing(source);
 	}
+}
+
+void SwitcherInputTile::ActivateLater(int delayMs)
+{
+	/* Showing the scene keeps its sources running so the thumbnail is
+	 * live. Cameras, captures and browsers can be slow to start, so a
+	 * full grid wakes up a tile at a time instead of all at once. */
+	QTimer::singleShot(delayMs, this, [this]() {
+		OBSSource source = GetSource();
+		if (source && !showing) {
+			obs_source_inc_showing(source);
+			showing = true;
+		}
+	});
 }
 
 void SwitcherInputTile::DrawThumbnail(void *data, uint32_t cx, uint32_t cy)
@@ -813,6 +824,11 @@ void SwitcherInputGrid::SetScenes(const std::vector<OBSSource> &scenes)
 	std::vector<QPointer<SwitcherInputTile>> newTiles;
 	newTiles.reserve(scenes.size());
 
+	/* On the first fill, stagger thumbnail activation after the window is
+	 * up; inputs added later go live right away */
+	bool firstFill = tiles.empty();
+	int activationDelay = firstFill ? 300 : 0;
+
 	for (const OBSSource &scene : scenes) {
 		auto it = std::find_if(tiles.begin(), tiles.end(), [&](const QPointer<SwitcherInputTile> &tile) {
 			return tile && tile->IsSource(scene);
@@ -833,6 +849,10 @@ void SwitcherInputGrid::SetScenes(const std::vector<OBSSource> &scenes)
 		connect(tile, &SwitcherInputTile::ProjectorRequested, this, &SwitcherInputGrid::ProjectorRequested);
 		connect(tile, &SwitcherInputTile::SettingsRequested, this, &SwitcherInputGrid::SettingsRequested);
 		connect(tile, &SwitcherInputTile::MenuRequested, this, &SwitcherInputGrid::MenuRequested);
+		tile->ActivateLater(activationDelay);
+		if (firstFill) {
+			activationDelay += 120;
+		}
 		newTiles.push_back(tile);
 	}
 

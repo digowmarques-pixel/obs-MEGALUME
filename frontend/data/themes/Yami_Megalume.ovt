@@ -28,7 +28,8 @@
 
     --bg_window: var(--grey7);
     --bg_base: var(--grey6);
-    --bg_preview: #000000;
+    /* Space around the canvas blends into the panel instead of black bars */
+    --bg_preview: var(--grey7);
 
     --primary: #3B6FE0;
     --primary_light: #5687F0;

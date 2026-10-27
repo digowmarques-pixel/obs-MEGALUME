@@ -2080,7 +2080,7 @@ OBSBasicFilters #widget_2 QPushButton {
     font-weight: bold;
     color: var(--switcher_title_text);
     padding: 4px 10px;
-    margin: 0px;
+    margin: 0px 10px;
     border-top-left-radius: var(--switcher_radius_large);
     border-top-right-radius: var(--switcher_radius_large);
 }

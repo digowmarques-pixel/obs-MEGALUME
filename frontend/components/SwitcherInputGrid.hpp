@@ -84,6 +84,7 @@ class SwitcherInputTile : public QFrame {
 	QPointer<QPushButton> playButton;
 	QPointer<QPushButton> audioButton;
 	std::array<QPointer<QPushButton>, SWITCHER_OVERLAY_COUNT> overlayButtons;
+	bool showing = false;
 
 	std::vector<OBSWeakSource> mediaSources;
 	std::vector<std::unique_ptr<AudioSource>> audioSources;
@@ -118,6 +119,7 @@ public:
 	OBSSource GetSource() const;
 	bool IsSource(obs_source_t *source) const;
 
+	void ActivateLater(int delayMs);
 	void SetNumber(int number);
 	void UpdateName();
 	void UpdateCategory();

@@ -1482,6 +1482,7 @@ private:
 	QPointer<SwitcherInputGrid> switcherInputGrid;
 	QPointer<SwitcherInputTabs> switcherInputTabs;
 	QPointer<SwitcherMultistream> switcherMultistream;
+	QPointer<QObject> switcherResizeWatcher;
 	bool switcherInputsRefreshQueued = false;
 	QPointer<QWidget> switcherMixerContainer;
 	QPointer<QWidget> switcherMixer;
@@ -1507,6 +1508,7 @@ private:
 	void OpenSwitcherInputSelect();
 	void OpenSwitcherInputSettings(OBSSource scene);
 	void OpenSwitcherStreamSettings();
+	void UpdateSwitcherDisplayWidths();
 	void ClearSwitcherOverlays();
 	void CreateSwitcherBusMeters();
 	void DestroySwitcherBusMeters();
