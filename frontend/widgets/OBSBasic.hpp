@@ -55,6 +55,7 @@ class SwitcherInputGrid;
 class SwitcherInputTabs;
 class SwitcherMultistream;
 class SwitcherBusMeters;
+class SwitcherBusOutputs;
 class SwitcherMultiCorder;
 class MediaControls;
 class OBSBasicFilters;
@@ -1494,6 +1495,7 @@ private:
 	QPointer<MediaControls> switcherProgramControls;
 	QPointer<QPushButton> switcherColumnOverlays[8];
 	QPointer<SwitcherBusMeters> switcherBusMeters;
+	QPointer<SwitcherBusOutputs> switcherBusOutputs;
 	QPointer<SwitcherMultiCorder> switcherMultiCorder;
 	QPointer<QObject> switcherDoubleClickWatcher;
 	QPointer<QLabel> switcherAlert;
@@ -1542,6 +1544,7 @@ private slots:
 
 public:
 	inline bool IsSwitcherMode() const { return switcherMode; }
+	void ReloadSwitcherBusOutputs();
 
 	/* -------------------------------------
 	 * MARK: - OBSBasic_SysTray

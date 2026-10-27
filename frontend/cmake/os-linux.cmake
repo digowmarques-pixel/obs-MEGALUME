@@ -12,6 +12,11 @@ target_compile_definitions(
 )
 target_link_libraries(obs-studio PRIVATE Qt::DBus)
 
+# Switcher bus outputs play through PulseAudio
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(PulseSimple REQUIRED IMPORTED_TARGET libpulse-simple)
+target_link_libraries(obs-studio PRIVATE PkgConfig::PulseSimple)
+
 find_package(Libpci REQUIRED)
 target_link_libraries(obs-studio PRIVATE Libpci::pci)
 

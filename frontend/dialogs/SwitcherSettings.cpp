@@ -1,6 +1,7 @@
 #include "SwitcherSettings.hpp"
 
 #include <OBSApp.hpp>
+#include <components/SwitcherBusOutputs.hpp>
 #include <widgets/OBSBasic.hpp>
 
 #include <qt-wrappers.hpp>
@@ -188,6 +189,32 @@ QWidget *SwitcherSettings::CreateAudioPage()
 	form->addRow(QTStr("Switcher.Settings.DefaultBuses"), buses);
 
 	form->addRow(QString(), Hint(QTStr("Switcher.Settings.BusesHint"), page));
+
+	/* Each bus can also play on an audio device of its own */
+	for (int i = 0; i < SWITCHER_BUS_COUNT; i++) {
+		QComboBox *combo = new QComboBox(page);
+		combo->addItem(QTStr("Switcher.Settings.BusOutputNone"), QString());
+		combo->addItem(QTStr("Basic.Settings.Advanced.Audio.MonitoringDevice.Default"), "default");
+		obs_enum_audio_monitoring_devices(
+			[](void *data, const char *name, const char *id) {
+				static_cast<QComboBox *>(data)->addItem(QT_UTF8(name), QT_UTF8(id));
+				return true;
+			},
+			combo);
+
+		QString current = SwitcherBusOutputs::DeviceId(i);
+		int index = combo->findData(current);
+		if (index < 0 && !current.isEmpty()) {
+			/* Saved device is unplugged right now; keep it */
+			combo->addItem(QTStr("Switcher.Settings.BusOutputMissing"), current);
+			index = combo->count() - 1;
+		}
+		combo->setCurrentIndex(std::max(index, 0));
+
+		busOutput[i] = combo;
+		form->addRow(QTStr("Switcher.Settings.BusOutput").arg(QTStr(names[i])), combo);
+	}
+	form->addRow(QString(), Hint(QTStr("Switcher.Settings.BusOutputHint"), page));
 	return page;
 }
 
@@ -269,6 +296,12 @@ void SwitcherSettings::Save()
 		}
 	}
 	config_set_int(config, "BasicWindow", "SwitcherDefaultBuses", mask);
+
+	for (int i = 0; i < SWITCHER_BUS_COUNT; i++) {
+		SwitcherBusOutputs::SetDeviceId(i, busOutput[i]->currentData().toString());
+	}
+	config_save_safe(main->Config(), "tmp", nullptr);
+	main->ReloadSwitcherBusOutputs();
 
 	config_set_bool(config, "BasicWindow", "SwitcherAlertVolume", alertVolume->isChecked());
 	config_set_int(config, "BasicWindow", "SwitcherAlertVolumeDb", alertVolumeDb->value());

@@ -47,6 +47,7 @@
 #endif
 #include <widgets/AudioMixer.hpp>
 #include <dialogs/SwitcherStreamSettings.hpp>
+#include <components/SwitcherBusOutputs.hpp>
 #include <widgets/OBSProjector.hpp>
 
 #include <OBSStudioAPI.hpp>
@@ -1893,6 +1894,9 @@ void OBSBasic::closeWindow()
 
 	disableSaving++;
 
+	/* Bus outputs listen to the audio mixes, so stop them while those exist */
+	delete switcherBusOutputs;
+
 	/* Clear all scene data (dialogs, widgets, widget sub-items, scenes,
 	 * sources, etc) so that all references are released before shutdown */
 	ClearSceneData();
@@ -2060,6 +2064,10 @@ void OBSBasic::OnEvent(enum obs_frontend_event event)
 	/* Extra stream destinations are stored per profile */
 	if (event == OBS_FRONTEND_EVENT_PROFILE_CHANGED && switcherMultistream) {
 		switcherMultistream->Load();
+	}
+
+	if (event == OBS_FRONTEND_EVENT_PROFILE_CHANGED) {
+		ReloadSwitcherBusOutputs();
 	}
 
 	if (switcherInputGrid) {

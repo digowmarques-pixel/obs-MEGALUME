@@ -33,6 +33,7 @@
 #include <dialogs/SwitcherInputSettings.hpp>
 #include <dialogs/SwitcherMultiCorder.hpp>
 #include <dialogs/SwitcherOutputs.hpp>
+#include <components/SwitcherBusOutputs.hpp>
 #include <dialogs/SwitcherSettings.hpp>
 #include <dialogs/SwitcherStreamSettings.hpp>
 #include <utility/BasicOutputHandler.hpp>
@@ -156,6 +157,9 @@ void OBSBasic::InitSwitcherMode()
 					   this);
 
 	switcherMultiCorder = new SwitcherMultiCorder(this);
+
+	/* Buses can play on audio devices of their own */
+	switcherBusOutputs = new SwitcherBusOutputs(this);
 
 	/* Extra stream destinations share the main stream's encoders */
 	switcherMultistream = new SwitcherMultistream(this, [this]() -> OBSOutputAutoRelease {
@@ -1048,6 +1052,13 @@ void OBSBasic::OpenSwitcherSettings()
 		UpdateSwitcherAlerts();
 	});
 	dialog->show();
+}
+
+void OBSBasic::ReloadSwitcherBusOutputs()
+{
+	if (switcherBusOutputs) {
+		switcherBusOutputs->Load();
+	}
 }
 
 void OBSBasic::OpenSwitcherOutputs()
