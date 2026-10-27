@@ -113,3 +113,8 @@ void SwitcherBusMeters::UpdateMeters()
 		bus.meter->SetLevels(bus.displayPeak[0], bus.displayPeak[1]);
 	}
 }
+
+float SwitcherBusMeters::MasterLevel() const
+{
+	return std::max(buses[0].displayPeak[0], buses[0].displayPeak[1]);
+}

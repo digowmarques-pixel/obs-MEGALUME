@@ -31,6 +31,7 @@
 #include <dialogs/NameDialog.hpp>
 #include <dialogs/SwitcherInputSelect.hpp>
 #include <dialogs/SwitcherInputSettings.hpp>
+#include <dialogs/SwitcherSettings.hpp>
 #include <dialogs/SwitcherStreamSettings.hpp>
 #include <utility/BasicOutputHandler.hpp>
 
@@ -81,6 +82,27 @@ protected:
 	}
 };
 
+/* Runs a callback on double-click; consumes the click when it says so */
+class SwitcherDoubleClickWatcher : public QObject {
+	std::function<bool()> callback;
+
+public:
+	SwitcherDoubleClickWatcher(QObject *parent, std::function<bool()> callback_)
+		: QObject(parent),
+		  callback(std::move(callback_))
+	{
+	}
+
+protected:
+	bool eventFilter(QObject *obj, QEvent *event) override
+	{
+		if (event->type() == QEvent::MouseButtonDblClick && callback()) {
+			return true;
+		}
+		return QObject::eventFilter(obj, event);
+	}
+};
+
 /* Width a display needs to show the canvas edge to edge at its height */
 int CanvasFitWidth(QWidget *display)
 {
@@ -126,6 +148,10 @@ void OBSBasic::InitSwitcherMode()
 	connect(this, &OBSBasic::RecordingStarted, this, startOnAir);
 	connect(this, &OBSBasic::StreamingStopped, this, stopOnAir, Qt::QueuedConnection);
 	connect(this, &OBSBasic::RecordingStopped, this, stopOnAir, Qt::QueuedConnection);
+
+	/* New audio sources go to the default buses from the switcher settings */
+	switcherSourceCreateSignal.Connect(obs_get_signal_handler(), "source_create", OBSBasic::SwitcherSourceCreated,
+					   this);
 
 	/* Extra stream destinations share the main stream's encoders */
 	switcherMultistream = new SwitcherMultistream(this, [this]() -> OBSOutputAutoRelease {
@@ -230,6 +256,16 @@ void OBSBasic::SetSwitcherMode(bool enable, bool applyLayout)
 		ui->previewXContainer->setVisible(false);
 		ui->previewYScrollBar->setVisible(false);
 
+		/* Optionally, double-clicking Preview takes it to air */
+		switcherDoubleClickWatcher = new SwitcherDoubleClickWatcher(this, [this]() {
+			if (!config_get_bool(App()->GetUserConfig(), "BasicWindow", "SwitcherPreviewDoubleClick")) {
+				return false;
+			}
+			TransitionClicked();
+			return true;
+		});
+		ui->preview->installEventFilter(switcherDoubleClickWatcher);
+
 		if (!config_get_bool(App()->GetUserConfig(), "BasicWindow", "VerticalVolumeControl")) {
 			toggleMixerLayout();
 		}
@@ -239,6 +275,7 @@ void OBSBasic::SetSwitcherMode(bool enable, bool applyLayout)
 		DestroySwitcherBusMeters();
 
 		delete switcherResizeWatcher;
+		delete switcherDoubleClickWatcher;
 		UpdateSwitcherDisplayWidths();
 
 		delete switcherPreviewMedia;
@@ -356,6 +393,23 @@ void OBSBasic::CreateSwitcherBar()
 	destinations->setToolButtonStyle(Qt::ToolButtonTextOnly);
 	connect(destinations, &QToolButton::clicked, this, &OBSBasic::OpenSwitcherStreamSettings);
 	barLayout->addWidget(destinations);
+
+	QToolButton *settings = new QToolButton(barContents);
+	settings->setObjectName("switcherSettingsButton");
+	settings->setText(QTStr("Switcher.Settings.Button"));
+	settings->setToolButtonStyle(Qt::ToolButtonTextOnly);
+	connect(settings, &QToolButton::clicked, this, &OBSBasic::OpenSwitcherSettings);
+	barLayout->addWidget(settings);
+
+	/* Alerts show up as a red pill in the middle of the bar */
+	switcherAlert = new QLabel(barContents);
+	switcherAlert->setObjectName("switcherAlert");
+	switcherAlert->setVisible(false);
+	barLayout->insertWidget(1, switcherAlert);
+
+	QTimer *alertTimer = new QTimer(barContents);
+	connect(alertTimer, &QTimer::timeout, this, &OBSBasic::UpdateSwitcherAlerts);
+	alertTimer->start(1000);
 
 	switcherBar->addWidget(barContents);
 	addToolBar(Qt::BottomToolBarArea, switcherBar);
@@ -571,10 +625,7 @@ void OBSBasic::CreateSwitcherInputGrid()
 		UpdatePreviewProgramIndicators();
 	});
 
-	connect(switcherInputGrid.data(), &SwitcherInputGrid::CloseRequested, this, [this](OBSSource source) {
-		SetCurrentScene(source);
-		RemoveSelectedScene();
-	});
+	connect(switcherInputGrid.data(), &SwitcherInputGrid::CloseRequested, this, &OBSBasic::RemoveSwitcherInput);
 
 	connect(switcherInputGrid.data(), &SwitcherInputGrid::OverlayRequested, this, &OBSBasic::ToggleSwitcherOverlay);
 
@@ -801,7 +852,8 @@ void OBSBasic::CreateSwitcherBusMeters()
 	QHBoxLayout *layout = new QHBoxLayout(switcherMixerContainer);
 	layout->setContentsMargins(0, 0, 0, 0);
 	layout->setSpacing(0);
-	layout->addWidget(new SwitcherBusMeters(switcherMixerContainer));
+	switcherBusMeters = new SwitcherBusMeters(switcherMixerContainer);
+	layout->addWidget(switcherBusMeters);
 
 	if (switcherMixer) {
 		layout->addWidget(switcherMixer, 1);
@@ -945,4 +997,104 @@ void OBSBasic::UpdateSwitcherMediaBars()
 
 	update(switcherPreviewMedia, switcherPreviewControls, GetCurrentSceneSource());
 	update(switcherProgramMedia, switcherProgramControls, IsPreviewProgramMode() ? GetProgramSource() : nullptr);
+}
+
+void OBSBasic::OpenSwitcherSettings()
+{
+	if (SwitcherSettings *open = findChild<SwitcherSettings *>()) {
+		open->raise();
+		open->activateWindow();
+		return;
+	}
+
+	SwitcherSettings *dialog = new SwitcherSettings(this);
+	connect(dialog, &SwitcherSettings::OpenObsSettings, this, &OBSBasic::on_action_Settings_triggered);
+	connect(dialog, &SwitcherSettings::Applied, this, [this](bool tileSizeChanged) {
+		/* Tiles take their size when created, so rebuild the grid */
+		if (tileSizeChanged && switcherInputGrid) {
+			DestroySwitcherInputGrid();
+			CreateSwitcherInputGrid();
+		}
+		UpdateSwitcherAlerts();
+	});
+	dialog->show();
+}
+
+void OBSBasic::RemoveSwitcherInput(OBSSource scene)
+{
+	config_t *config = App()->GetUserConfig();
+	bool confirm = !config_has_user_value(config, "BasicWindow", "SwitcherConfirmClose") ||
+		       config_get_bool(config, "BasicWindow", "SwitcherConfirmClose");
+
+	if (confirm) {
+		SetCurrentScene(scene);
+		RemoveSelectedScene();
+	} else {
+		/* Same as removing the scene without the question */
+		blog(LOG_INFO, "Switcher input '%s' closed", obs_source_get_name(scene));
+		obs_source_remove(scene);
+	}
+}
+
+void OBSBasic::SwitcherSourceCreated(void *, calldata_t *calldata)
+{
+	obs_source_t *source = static_cast<obs_source_t *>(calldata_ptr(calldata, "source"));
+	if (!source || obs_source_get_type(source) != OBS_SOURCE_TYPE_INPUT || obs_obj_is_private(source) ||
+	    !(obs_source_get_output_flags(source) & OBS_SOURCE_AUDIO)) {
+		return;
+	}
+
+	/* Sources loaded from a scene collection get their saved tracks
+	 * restored right after creation, so this only affects new ones */
+	config_t *config = App()->GetUserConfig();
+	if (config_has_user_value(config, "BasicWindow", "SwitcherDefaultBuses")) {
+		obs_source_set_audio_mixers(source,
+					    (uint32_t)config_get_int(config, "BasicWindow", "SwitcherDefaultBuses"));
+	}
+}
+
+void OBSBasic::UpdateSwitcherAlerts()
+{
+	if (!switcherAlert) {
+		return;
+	}
+
+	config_t *config = App()->GetUserConfig();
+	QStringList alerts;
+
+	if (config_get_bool(config, "BasicWindow", "SwitcherAlertFtb") && prevFTBSource) {
+		alerts << QTStr("Switcher.Alert.Ftb");
+	}
+
+	if (config_get_bool(config, "BasicWindow", "SwitcherAlertNotRecording") && !RecordingActive()) {
+		alerts << QTStr("Switcher.Alert.NotRecording");
+	}
+
+	/* Quiet Master only matters while something is going out */
+	bool live = StreamingActive() || RecordingActive();
+	if (config_get_bool(config, "BasicWindow", "SwitcherAlertVolume") && live && switcherBusMeters) {
+		int threshold = config_has_user_value(config, "BasicWindow", "SwitcherAlertVolumeDb")
+					? (int)config_get_int(config, "BasicWindow", "SwitcherAlertVolumeDb")
+					: -50;
+		int seconds = config_has_user_value(config, "BasicWindow", "SwitcherAlertVolumeSeconds")
+				      ? (int)config_get_int(config, "BasicWindow", "SwitcherAlertVolumeSeconds")
+				      : 5;
+
+		qint64 now = QDateTime::currentMSecsSinceEpoch();
+		if (switcherBusMeters->MasterLevel() < threshold) {
+			if (!switcherQuietSince) {
+				switcherQuietSince = now;
+			}
+			if (now - switcherQuietSince >= seconds * 1000) {
+				alerts << QTStr("Switcher.Alert.Volume");
+			}
+		} else {
+			switcherQuietSince = 0;
+		}
+	} else {
+		switcherQuietSince = 0;
+	}
+
+	switcherAlert->setText(alerts.join("  \u2022  "));
+	switcherAlert->setVisible(!alerts.isEmpty());
 }

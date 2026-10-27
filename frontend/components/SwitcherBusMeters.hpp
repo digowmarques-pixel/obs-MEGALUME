@@ -34,4 +34,7 @@ class SwitcherBusMeters : public QFrame {
 public:
 	SwitcherBusMeters(QWidget *parent = nullptr);
 	~SwitcherBusMeters();
+
+	/* Current Master level in dB, as shown on its meter */
+	float MasterLevel() const;
 };

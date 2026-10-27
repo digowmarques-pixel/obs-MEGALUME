@@ -26,10 +26,25 @@
 
 #include "moc_SwitcherInputGrid.cpp"
 
-#define TILE_WIDTH 212
 #define VU_WIDTH 10
-#define THUMBNAIL_WIDTH (TILE_WIDTH - VU_WIDTH)
-#define THUMBNAIL_HEIGHT 113
+
+/* Tile width follows the Display setting; the thumbnail keeps 16:9 */
+static int TileWidth()
+{
+	config_t *config = App()->GetUserConfig();
+	if (!config_has_user_value(config, "BasicWindow", "SwitcherTileSize")) {
+		return 212;
+	}
+
+	switch (config_get_int(config, "BasicWindow", "SwitcherTileSize")) {
+	case 0:
+		return 196;
+	case 2:
+		return 256;
+	default:
+		return 212;
+	}
+}
 
 #define METER_FLOOR_DB -60.0f
 #define METER_DECAY_DB 1.2f
@@ -286,7 +301,11 @@ SwitcherInputTile::SwitcherInputTile(obs_source_t *source, QWidget *parent)
 	pendingPeak[1] = METER_FLOOR_DB;
 
 	setObjectName("switcherInputTile");
-	setFixedWidth(TILE_WIDTH);
+	const int tileWidth = TileWidth();
+	const int thumbnailWidth = tileWidth - VU_WIDTH;
+	const int thumbnailHeight = thumbnailWidth * 9 / 16;
+
+	setFixedWidth(tileWidth);
 
 	QVBoxLayout *layout = new QVBoxLayout(this);
 	layout->setContentsMargins(0, 0, 0, 0);
@@ -336,7 +355,7 @@ SwitcherInputTile::SwitcherInputTile(obs_source_t *source, QWidget *parent)
 
 	thumbnail = new OBSQTDisplay(this);
 	thumbnail->setObjectName("switcherInputThumbnail");
-	thumbnail->setFixedSize(THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT);
+	thumbnail->setFixedSize(thumbnailWidth, thumbnailHeight);
 	thumbnail->SetDisplayBackgroundColor(Qt::black);
 	thumbnail->installEventFilter(this);
 	header->installEventFilter(this);
@@ -346,7 +365,7 @@ SwitcherInputTile::SwitcherInputTile(obs_source_t *source, QWidget *parent)
 	});
 
 	vuMeter = new SwitcherVuMeter(this);
-	vuMeter->setFixedSize(VU_WIDTH, THUMBNAIL_HEIGHT);
+	vuMeter->setFixedSize(VU_WIDTH, thumbnailHeight);
 
 	viewLayout->addWidget(thumbnail);
 	viewLayout->addWidget(vuMeter);
