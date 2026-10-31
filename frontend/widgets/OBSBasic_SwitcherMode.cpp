@@ -1308,9 +1308,9 @@ void OBSBasic::UpdateSwitcherAlerts()
 		alerts << QTStr("Switcher.Alert.NotRecording");
 	}
 
-	/* Quiet Master only matters while something is going out */
-	bool live = StreamingActive() || RecordingActive();
-	if (config_get_bool(config, "BasicWindow", "SwitcherAlertVolume") && live && switcherBusMeters) {
+	/* Checked whenever it is turned on, live or not, so it can be tried
+	 * out before a show */
+	if (config_get_bool(config, "BasicWindow", "SwitcherAlertVolume") && switcherBusMeters) {
 		int threshold = config_has_user_value(config, "BasicWindow", "SwitcherAlertVolumeDb")
 					? (int)config_get_int(config, "BasicWindow", "SwitcherAlertVolumeDb")
 					: -50;
@@ -1319,7 +1319,9 @@ void OBSBasic::UpdateSwitcherAlerts()
 				      : 5;
 
 		qint64 now = QDateTime::currentMSecsSinceEpoch();
-		if (switcherBusMeters->MasterLevel() < threshold) {
+		/* The meter bottoms out at its floor, so a threshold there still
+		 * counts silence */
+		if (switcherBusMeters->MasterLevel() <= threshold) {
 			if (!switcherQuietSince) {
 				switcherQuietSince = now;
 			}
