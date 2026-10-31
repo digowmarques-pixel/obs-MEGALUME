@@ -1995,12 +1995,15 @@ void OBSBasic::UpdateTitleBar()
 	const char *profile = config_get_string(App()->GetUserConfig(), "Basic", "Profile");
 	const char *sceneCollection = config_get_string(App()->GetUserConfig(), "Basic", "SceneCollection");
 
-	name << "OBS ";
-	if (previewProgramMode) {
-		name << "Studio ";
+	/* MEGALUME is built on OBS Studio; the title names both, without the
+	 * fork suffix the version string carries */
+	std::string version = App()->GetVersionString(false);
+	const std::string suffix = "-megalume";
+	if (version.size() > suffix.size() &&
+	    version.compare(version.size() - suffix.size(), suffix.size(), suffix) == 0) {
+		version.erase(version.size() - suffix.size());
 	}
-
-	name << App()->GetVersionString(false);
+	name << "MEGALUME (OBS " << version << ")";
 	if (safe_mode) {
 		name << " (" << Str("TitleBar.SafeMode") << ")";
 	}
