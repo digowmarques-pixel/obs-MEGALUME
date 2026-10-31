@@ -36,6 +36,7 @@
 #include <dialogs/SwitcherReplay.hpp>
 #include <utility/SwitcherVirtualCam.hpp>
 #include <components/SwitcherBusOutputs.hpp>
+#include <components/SwitcherNdi.hpp>
 #include <components/SwitcherAutomation.hpp>
 #include <dialogs/SwitcherSettings.hpp>
 #include <dialogs/SwitcherStreamSettings.hpp>
@@ -165,6 +166,9 @@ void OBSBasic::InitSwitcherMode()
 
 	/* Buses can play on audio devices of their own */
 	switcherBusOutputs = new SwitcherBusOutputs(this);
+
+	/* Program and Preview over NDI, started once plugins have loaded */
+	switcherNdi = new SwitcherNdi(this);
 
 	/* Buses turned on or off in the switcher settings */
 	connect(this, &OBSBasic::userSettingChanged, this,
@@ -499,8 +503,24 @@ void OBSBasic::CreateSwitcherBar()
 	QMenu *externalMenu = new QMenu(external);
 	QAction *vcamAction = externalMenu->addAction(QString());
 	connect(vcamAction, &QAction::triggered, this, &OBSBasic::VirtualCamActionTriggered);
+	QAction *ndiAction = externalMenu->addAction(QTStr("Switcher.Ndi.ProgramToggle"));
+	ndiAction->setCheckable(true);
+	connect(ndiAction, &QAction::toggled, this, [this](bool checked) {
+		if (!switcherNdi) {
+			return;
+		}
+		SwitcherNdi::Settings settings = switcherNdi->Load();
+		settings.program = checked;
+		switcherNdi->Save(settings);
+		switcherNdi->Apply();
+	});
 	externalMenu->addSeparator();
 	externalMenu->addAction(QTStr("Switcher.External.Outputs"), this, &OBSBasic::OpenSwitcherOutputs);
+	connect(externalMenu, &QMenu::aboutToShow, this, [this, ndiAction]() {
+		QSignalBlocker blocker(ndiAction);
+		ndiAction->setEnabled(SwitcherNdi::OutputAvailable());
+		ndiAction->setChecked(switcherNdi && switcherNdi->ProgramActive());
+	});
 	connect(externalMenu, &QMenu::aboutToShow, this, [this, vcamAction]() {
 		vcamAction->setText(
 			QTStr(VirtualCamActive() ? "Basic.Main.StopVirtualCam" : "Basic.Main.StartVirtualCam"));

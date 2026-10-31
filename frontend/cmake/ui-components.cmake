@@ -87,6 +87,8 @@ target_sources(
     components/SwitcherAutomation.hpp
     components/SwitcherBusOutputs.cpp
     components/SwitcherBusOutputs.hpp
+    components/SwitcherNdi.cpp
+    components/SwitcherNdi.hpp
     components/SwitcherInputGrid.cpp
     components/SwitcherInputGrid.hpp
     components/TextSourceToolbar.cpp

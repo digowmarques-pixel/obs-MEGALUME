@@ -3,6 +3,7 @@
 
 #include <OBSApp.hpp>
 #include <components/SwitcherInputGrid.hpp>
+#include <components/SwitcherNdi.hpp>
 #include <widgets/OBSBasic.hpp>
 #include <widgets/OBSQTDisplay.hpp>
 
@@ -292,6 +293,20 @@ QWidget *SwitcherInputSettings::CreateGeneralPage()
 		OBSSource source = GetScene();
 		if (source) {
 			SwitcherSetGoAction(source, goAction->currentData().toInt());
+		}
+	});
+
+	/* Like vMix's per-input NDI: the input goes out as its own NDI source */
+	QCheckBox *ndi = new QCheckBox(QTStr("Switcher.Ndi.SendInput").arg(SwitcherNdi::InputNdiName(scene)), page);
+	ndi->setChecked(SwitcherNdi::InputSending(scene));
+	ndi->setEnabled(SwitcherNdi::FilterAvailable() || ndi->isChecked());
+	if (!SwitcherNdi::FilterAvailable()) {
+		ndi->setToolTip(QTStr("Switcher.Ndi.MissingShort"));
+	}
+	form->addRow(QTStr("Switcher.Ndi.Title"), ndi);
+	connect(ndi, &QCheckBox::toggled, this, [this](bool checked) {
+		if (OBSSource source = GetScene()) {
+			SwitcherNdi::SetInputSending(source, checked);
 		}
 	});
 

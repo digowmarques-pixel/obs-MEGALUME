@@ -48,6 +48,7 @@
 #include <widgets/AudioMixer.hpp>
 #include <dialogs/SwitcherStreamSettings.hpp>
 #include <components/SwitcherBusOutputs.hpp>
+#include <components/SwitcherNdi.hpp>
 #include <dialogs/SwitcherMultiCorder.hpp>
 #include <widgets/OBSProjector.hpp>
 
@@ -1897,6 +1898,7 @@ void OBSBasic::closeWindow()
 
 	/* Bus outputs listen to the audio mixes, so stop them while those exist */
 	delete switcherBusOutputs;
+	delete switcherNdi;
 	if (switcherMultiCorder) {
 		switcherMultiCorder->ForceStopAll();
 	}
@@ -2081,6 +2083,25 @@ void OBSBasic::OnEvent(enum obs_frontend_event event)
 
 	if (event == OBS_FRONTEND_EVENT_REPLAY_BUFFER_SAVED) {
 		SwitcherReplaySaved();
+	}
+
+	if (switcherNdi) {
+		switch (event) {
+		case OBS_FRONTEND_EVENT_FINISHED_LOADING:
+		case OBS_FRONTEND_EVENT_PROFILE_CHANGED:
+			switcherNdi->Apply();
+			break;
+		case OBS_FRONTEND_EVENT_PREVIEW_SCENE_CHANGED:
+		case OBS_FRONTEND_EVENT_STUDIO_MODE_ENABLED:
+			switcherNdi->SetPreviewSource(GetCurrentSceneSource());
+			break;
+		case OBS_FRONTEND_EVENT_SCENE_COLLECTION_CLEANUP:
+			/* The Preview view holds a scene; let go before scenes go */
+			switcherNdi->SetPreviewSource(nullptr);
+			break;
+		default:
+			break;
+		}
 	}
 
 	if (switcherInputGrid) {

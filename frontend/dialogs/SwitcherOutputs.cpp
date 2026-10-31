@@ -2,14 +2,18 @@
 
 #include <OBSApp.hpp>
 #include <components/Multiview.hpp>
+#include <components/SwitcherNdi.hpp>
 #include <widgets/OBSBasic.hpp>
 #include <widgets/OBSProjector.hpp>
 
 #include <qt-wrappers.hpp>
 
+#include <QCheckBox>
 #include <QComboBox>
+#include <QLineEdit>
 #include <QDialogButtonBox>
 #include <QFormLayout>
+#include <QGridLayout>
 #include <QGroupBox>
 #include <QGuiApplication>
 #include <QLabel>
@@ -101,6 +105,40 @@ SwitcherOutputs::SwitcherOutputs(OBSBasic *main_) : QDialog(main_), main(main_)
 	vcamLayout->addStretch();
 	layout->addWidget(vcam);
 
+	/* NDI: Program and Preview as sources other machines can receive */
+	QGroupBox *ndi = new QGroupBox(QTStr("Switcher.Ndi.Title"), this);
+	QGridLayout *ndiLayout = new QGridLayout(ndi);
+	SwitcherNdi::Settings ndiSettings = main->switcherNdi ? main->switcherNdi->Load() : SwitcherNdi::Settings();
+
+	ndiProgram = new QCheckBox(QTStr("Switcher.Ndi.Program"), ndi);
+	ndiProgram->setChecked(ndiSettings.program);
+	ndiProgramName = new QLineEdit(ndiSettings.programName, ndi);
+	ndiPreview = new QCheckBox(QTStr("Switcher.Ndi.Preview"), ndi);
+	ndiPreview->setChecked(ndiSettings.preview);
+	ndiPreviewName = new QLineEdit(ndiSettings.previewName, ndi);
+	ndiStatus = new QLabel(ndi);
+	ndiStatus->setObjectName("switcherSettingsHint");
+	ndiStatus->setWordWrap(true);
+	ndiStatus->setOpenExternalLinks(true);
+
+	ndiLayout->addWidget(ndiProgram, 0, 0);
+	ndiLayout->addWidget(ndiProgramName, 0, 1);
+	ndiLayout->addWidget(ndiPreview, 1, 0);
+	ndiLayout->addWidget(ndiPreviewName, 1, 1);
+	ndiLayout->addWidget(ndiStatus, 2, 0, 1, 2);
+	ndiLayout->setColumnStretch(1, 1);
+	layout->addWidget(ndi);
+
+	bool ndiAvailable = SwitcherNdi::OutputAvailable();
+	for (QWidget *widget :
+	     std::initializer_list<QWidget *>{ndiProgram, ndiProgramName, ndiPreview, ndiPreviewName}) {
+		widget->setEnabled(ndiAvailable);
+	}
+	connect(ndiProgram.data(), &QCheckBox::toggled, this, &SwitcherOutputs::ApplyNdi);
+	connect(ndiPreview.data(), &QCheckBox::toggled, this, &SwitcherOutputs::ApplyNdi);
+	connect(ndiProgramName.data(), &QLineEdit::editingFinished, this, &SwitcherOutputs::ApplyNdi);
+	connect(ndiPreviewName.data(), &QLineEdit::editingFinished, this, &SwitcherOutputs::ApplyNdi);
+
 	QDialogButtonBox *box = new QDialogButtonBox(QDialogButtonBox::Close, this);
 	connect(box, &QDialogButtonBox::rejected, this, &QDialog::close);
 	layout->addWidget(box);
@@ -183,6 +221,31 @@ void SwitcherOutputs::SetOutput(int monitor, const QString &output)
 	activateWindow();
 }
 
+void SwitcherOutputs::ApplyNdi()
+{
+	if (!main->switcherNdi) {
+		return;
+	}
+
+	SwitcherNdi::Settings settings;
+	settings.program = ndiProgram->isChecked();
+	settings.programName = ndiProgramName->text().trimmed();
+	settings.preview = ndiPreview->isChecked();
+	settings.previewName = ndiPreviewName->text().trimmed();
+	if (settings.programName.isEmpty()) {
+		settings.programName = "MEGALUME Program";
+		ndiProgramName->setText(settings.programName);
+	}
+	if (settings.previewName.isEmpty()) {
+		settings.previewName = "MEGALUME Preview";
+		ndiPreviewName->setText(settings.previewName);
+	}
+
+	main->switcherNdi->Save(settings);
+	main->switcherNdi->Apply();
+	Refresh();
+}
+
 void SwitcherOutputs::Refresh()
 {
 	for (int i = 0; i < (int)monitors.size(); i++) {
@@ -200,6 +263,22 @@ void SwitcherOutputs::Refresh()
 			index = combo->findData(output);
 		}
 		combo->setCurrentIndex(std::max(0, index));
+	}
+
+	if (ndiStatus) {
+		if (!SwitcherNdi::OutputAvailable()) {
+			ndiStatus->setText(QTStr("Switcher.Ndi.Missing"));
+		} else if (main->switcherNdi) {
+			QStringList live;
+			if (main->switcherNdi->ProgramActive()) {
+				live << ndiProgramName->text();
+			}
+			if (main->switcherNdi->PreviewActive()) {
+				live << ndiPreviewName->text();
+			}
+			ndiStatus->setText(live.isEmpty() ? QTStr("Switcher.Ndi.Off")
+							  : QTStr("Switcher.Ndi.Sending").arg(live.join(", ")));
+		}
 	}
 
 	if (virtualCam) {

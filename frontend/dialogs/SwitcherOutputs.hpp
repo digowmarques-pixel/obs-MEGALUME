@@ -6,7 +6,10 @@
 #include <vector>
 
 class OBSBasic;
+class QCheckBox;
 class QComboBox;
+class QLabel;
+class QLineEdit;
 class QPushButton;
 
 /* vMix-style External Outputs window: choose what each monitor shows full
@@ -20,6 +23,14 @@ class SwitcherOutputs : public QDialog {
 	std::vector<QPointer<QComboBox>> monitors;
 	QPointer<QComboBox> multiviewLayout;
 	QPointer<QPushButton> virtualCam;
+
+	/* NDI */
+	QPointer<QCheckBox> ndiProgram;
+	QPointer<QLineEdit> ndiProgramName;
+	QPointer<QCheckBox> ndiPreview;
+	QPointer<QLineEdit> ndiPreviewName;
+	QPointer<QLabel> ndiStatus;
+	void ApplyNdi();
 
 	void PopulateSources(QComboBox *combo);
 	QString CurrentOutput(int monitor) const;
