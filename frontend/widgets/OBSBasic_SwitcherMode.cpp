@@ -453,47 +453,6 @@ void OBSBasic::CreateSwitcherBar()
 	connect(multiCorder, &QToolButton::clicked, this, &OBSBasic::OpenSwitcherMultiCorder);
 	barLayout->addWidget(multiCorder);
 
-	/* Virtual camera: click to start or stop, the arrow opens its setup */
-	QToolButton *vcam = new QToolButton(barContents);
-	vcam->setObjectName("switcherVirtualCam");
-	vcam->setText(QTStr("Switcher.VirtualCam.Button"));
-	vcam->setToolButtonStyle(Qt::ToolButtonTextOnly);
-	vcam->setCheckable(true);
-	vcam->setPopupMode(QToolButton::MenuButtonPopup);
-	QMenu *vcamMenu = new QMenu(vcam);
-	vcamMenu->addAction(QTStr("Switcher.VirtualCam.Setup"), this, &OBSBasic::OpenVirtualCamConfig);
-	vcam->setMenu(vcamMenu);
-	auto updateVcam = [this, vcam]() {
-		bool active = VirtualCamActive();
-		QSignalBlocker blocker(vcam);
-		vcam->setChecked(active);
-		vcam->setText(QTStr(active ? "Switcher.VirtualCam.On" : "Switcher.VirtualCam.Button"));
-		setClasses(vcam, active ? "state-active" : "");
-		vcam->style()->unpolish(vcam);
-		vcam->style()->polish(vcam);
-	};
-	connect(vcam, &QToolButton::clicked, this, [this, updateVcam]() {
-		/* The state follows the virtual camera, not the click */
-		if (VCamEnabled()) {
-			VirtualCamActionTriggered();
-		} else {
-			OfferVirtualCamInstall();
-		}
-		updateVcam();
-	});
-	connect(this, &OBSBasic::VirtualCamStarted, vcam, updateVcam);
-	connect(this, &OBSBasic::VirtualCamStopped, vcam, updateVcam);
-	connect(this, &OBSBasic::VirtualCamEnabled, vcam, updateVcam);
-	updateVcam();
-	barLayout->addWidget(vcam);
-
-	QToolButton *replay = new QToolButton(barContents);
-	replay->setObjectName("switcherReplayButton");
-	replay->setText(QTStr("Switcher.Replay.Button"));
-	replay->setToolButtonStyle(Qt::ToolButtonTextOnly);
-	connect(replay, &QToolButton::clicked, this, &OBSBasic::OpenSwitcherReplay);
-	barLayout->addWidget(replay);
-
 	/* External outputs: virtual camera and full screen outputs */
 	QToolButton *external = new QToolButton(barContents);
 	external->setObjectName("switcherExternalButton");
@@ -501,8 +460,20 @@ void OBSBasic::CreateSwitcherBar()
 	external->setToolButtonStyle(Qt::ToolButtonTextOnly);
 	external->setPopupMode(QToolButton::InstantPopup);
 	QMenu *externalMenu = new QMenu(external);
+	/* Virtual camera and Replay live here rather than on the bar, to keep
+	 * it short */
 	QAction *vcamAction = externalMenu->addAction(QString());
-	connect(vcamAction, &QAction::triggered, this, &OBSBasic::VirtualCamActionTriggered);
+	connect(vcamAction, &QAction::triggered, this, [this]() {
+		if (VCamEnabled()) {
+			VirtualCamActionTriggered();
+		} else {
+			OfferVirtualCamInstall();
+		}
+	});
+	externalMenu->addAction(QTStr("Switcher.VirtualCam.Setup"), this, &OBSBasic::OpenVirtualCamConfig);
+	externalMenu->addSeparator();
+	externalMenu->addAction(QTStr("Switcher.Replay.MenuItem"), this, &OBSBasic::OpenSwitcherReplay);
+	externalMenu->addSeparator();
 	QAction *ndiAction = externalMenu->addAction(QTStr("Switcher.Ndi.ProgramToggle"));
 	ndiAction->setCheckable(true);
 	connect(ndiAction, &QAction::toggled, this, [this](bool checked) {
@@ -524,10 +495,21 @@ void OBSBasic::CreateSwitcherBar()
 	connect(externalMenu, &QMenu::aboutToShow, this, [this, vcamAction]() {
 		vcamAction->setText(
 			QTStr(VirtualCamActive() ? "Basic.Main.StopVirtualCam" : "Basic.Main.StartVirtualCam"));
-		vcamAction->setEnabled(VCamEnabled());
 	});
 	external->setMenu(externalMenu);
 	barLayout->addWidget(external);
+
+	/* With the virtual camera on, the button says so */
+	auto updateExternal = [this, external]() {
+		bool active = VirtualCamActive();
+		external->setText(QTStr(active ? "Switcher.External.ButtonActive" : "Switcher.External.Button"));
+		setClasses(external, active ? "state-active" : "");
+		external->style()->unpolish(external);
+		external->style()->polish(external);
+	};
+	connect(this, &OBSBasic::VirtualCamStarted, external, updateExternal);
+	connect(this, &OBSBasic::VirtualCamStopped, external, updateExternal);
+	updateExternal();
 
 	QToolButton *settings = new QToolButton(barContents);
 	settings->setObjectName("switcherSettingsButton");

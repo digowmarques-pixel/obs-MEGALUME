@@ -2204,7 +2204,8 @@ OBSBasicFilters #widget_2 QPushButton {
     border-color: var(--red3);
 }
 
-#switcherVirtualCam.state-active {
+#switcherVirtualCam.state-active,
+#switcherExternalButton.state-active {
     background-color: var(--switcher_onair);
     border-color: var(--switcher_onair);
     color: var(--switcher_title_text);
